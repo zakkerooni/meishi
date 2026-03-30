@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="名刺帳">
+<meta name="theme-color" content="#ffffff">
+<title>名刺帳 — MiKS & Linnas</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* ══ TOKENS ══ */
+:root{
+  --bg:#fff;--bg2:#f8f8f6;--bg3:#f0efe9;--bg4:#e8e7e0;
+  --border:#ebebе6;--border2:#d8d7d0;
+  --text:#111;--text2:#666;--text3:#aaa;
+  --accent:#1a56db;--accent-bg:#eef3ff;--accent2:#1345b5;
+  --miks:#1a56db;--miks-bg:#eef3ff;--miks-light:#dce8ff;
+  --linnas:#be185d;--linnas-bg:#fdf2f8;--linnas-light:#fce7f3;
+  --ok:#15803d;--ok-bg:#f0fdf4;
+  --warn:#b45309;--warn-bg:#fffbeb;
+  --err:#b91c1c;--err-bg:#fef2f2;
+  --r:8px;--r-sm:6px;--r-lg:14px;--r-xl:20px;
+  --sh:0 1px 4px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.04);
+  --sh-md:0 8px 24px rgba(0,0,0,.1),0 2px 6px rgba(0,0,0,.06);
+  --font:'Noto Sans JP',sans-serif;
+  --mono:'DM Mono',monospace;
+  --display:'Syne',sans-serif;
+  --nav-h:64px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.6}
+
+/* ══ SHELL ══ */
+#app{display:flex;flex-direction:column;height:100dvh}
+
+/* ── topbar ── */
+#topbar{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 16px;border-bottom:1px solid var(--border);
+  background:rgba(255,255,255,.92);backdrop-filter:blur(12px);
+  flex-shrink:0;position:sticky;top:0;z-index:20;
+}
+.logo{font-family:var(--display);font-size:17px;font-weight:700;letter-spacing:-.02em;white-space:nowrap;line-height:1}
+.logo .miks{color:var(--miks)}
+.logo .sep{color:var(--border2);margin:0 4px;font-weight:400}
+.logo .linnas{color:var(--linnas)}
+.search-wrap{flex:1;position:relative;min-width:0}
+.search-wrap input{
+  width:100%;padding:8px 12px 8px 34px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);font-size:13px;font-family:var(--font);outline:none;
+  transition:border-color .15s,background .15s;
+}
+.search-wrap input:focus{border-color:var(--accent);background:var(--bg)}
+.search-wrap input::placeholder{color:var(--text3)}
+.search-ico{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none}
+
+/* ── pages ── */
+#pages{flex:1;overflow:hidden;position:relative}
+.page{display:none;height:100%;overflow-y:auto;padding-bottom:calc(var(--nav-h) + 12px)}
+.page.active{display:block}
+.page::-webkit-scrollbar{width:3px}
+.page::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ── bottom nav ── */
+#nav{
+  position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);
+  background:rgba(255,255,255,.95);backdrop-filter:blur(16px);
+  border-top:1px solid var(--border);
+  display:flex;align-items:stretch;z-index:50;
+  padding:0 4px;max-width:640px;margin:0 auto;
+}
+.nav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;cursor:pointer;padding:8px 4px 10px;position:relative;
+  transition:color .15s;color:var(--text3);
+  border:none;background:none;font-family:var(--font);
+}
+.nav-item:hover{color:var(--text2)}
+.nav-item.active{color:var(--accent)}
+.nav-item.active .nav-dot{opacity:1;transform:scale(1)}
+.nav-ico{font-size:20px;line-height:1;transition:transform .2s}
+.nav-item.active .nav-ico{transform:translateY(-1px)}
+.nav-lbl{font-size:10px;font-weight:500;letter-spacing:.01em}
+.nav-dot{
+  position:absolute;top:6px;width:4px;height:4px;border-radius:50%;
+  background:var(--accent);opacity:0;transform:scale(0);
+  transition:opacity .2s,transform .2s;
+}
+.nav-badge{
+  position:absolute;top:5px;right:calc(50% - 14px);
+  background:var(--linnas);color:white;font-size:9px;font-weight:700;
+  padding:1px 5px;border-radius:10px;font-family:var(--mono);
+  min-width:16px;text-align:center;
+}
+
+/* FAB */
+#fab{
+  position:fixed;bottom:calc(var(--nav-h) + 14px);right:16px;
+  display:flex;align-items:center;gap:7px;
+  padding:11px 18px;border-radius:28px;
+  background:var(--accent);color:#fff;
+  font-size:13px;font-weight:500;font-family:var(--font);
+  cursor:pointer;box-shadow:0 4px 20px rgba(26,86,219,.38);
+  transition:box-shadow .15s,transform .1s;z-index:40;border:none;
+}
+#fab:hover{box-shadow:0 6px 24px rgba(26,86,219,.48)}
+#fab:active{transform:scale(.97)}
+#fab svg{width:16px;height:16px;flex-shrink:0}
+
+/* ══ CARDS PAGE ══ */
+#page-cards{display:none;flex-direction:column}
+#page-cards.active{display:flex}
+
+#filterbar{
+  display:flex;gap:6px;padding:10px 16px 8px;
+  overflow-x:auto;scrollbar-width:none;flex-shrink:0;
+  border-bottom:1px solid var(--border);
+}
+#filterbar::-webkit-scrollbar{display:none}
+.chip{
+  display:flex;align-items:center;gap:4px;
+  padding:5px 12px;border-radius:20px;
+  font-size:12px;font-weight:500;cursor:pointer;
+  border:1px solid var(--border2);color:var(--text2);
+  background:var(--bg);white-space:nowrap;
+  transition:all .12s;flex-shrink:0;user-select:none;
+}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.chip.cm.active{background:var(--miks-bg);border-color:var(--miks);color:var(--miks)}
+.chip.cl.active{background:var(--linnas-bg);border-color:var(--linnas);color:var(--linnas)}
+
+#sortbar{display:flex;align-items:center;gap:6px;padding:7px 16px;flex-shrink:0}
+.sl{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.sb{
+  font-size:11px;color:var(--text2);background:var(--bg);
+  border:1px solid var(--border);border-radius:4px;
+  padding:3px 8px;cursor:pointer;font-family:var(--mono);
+  transition:all .12s;user-select:none;
+}
+.sb:hover{border-color:var(--accent);color:var(--accent)}
+.sb.active{color:var(--accent);border-color:var(--accent);background:var(--accent-bg)}
+.cnt{margin-left:auto;font-size:11px;font-family:var(--mono);color:var(--text3)}
+
+#card-grid{
+  flex:1;overflow-y:auto;padding:12px 16px 8px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(288px,1fr));
+  gap:10px;align-content:start;
+}
+#card-grid::-webkit-scrollbar{width:3px}
+#card-grid::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+.mc{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:14px 16px 12px;
+  cursor:pointer;transition:box-shadow .15s,border-color .15s;
+  animation:fu .22s ease both;position:relative;overflow:hidden;
+}
+.mc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px}
+.mc.org-miks::before{background:var(--miks)}
+.mc.org-linnas::before{background:var(--linnas)}
+.mc:hover{box-shadow:var(--sh-md);border-color:var(--border2)}
+@keyframes fu{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+.mc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.mc-org{font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;font-family:var(--mono)}
+.mc-org.miks{background:var(--miks-light);color:var(--miks)}
+.mc-org.linnas{background:var(--linnas-light);color:var(--linnas)}
+.mc-date{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.mc-co{font-size:13px;font-weight:500;margin-bottom:1px}
+.mc-dept{font-size:11px;color:var(--text3);margin-bottom:7px}
+.mc-name{font-size:19px;font-weight:300;letter-spacing:-.01em}
+.mc-role{font-size:11px;color:var(--text2);margin-bottom:8px}
+.mc-info{display:flex;flex-direction:column;gap:3px;margin-bottom:10px}
+.mc-row{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px}
+.mc-ico{font-size:11px;color:var(--text3);width:14px;text-align:center}
+.mc-foot{display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border)}
+.ow-chip{font-size:10px;color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:2px 8px;display:flex;align-items:center;gap:3px}
+.qb-wrap{display:flex;gap:4px}
+.qb{width:26px;height:26px;border-radius:50%;background:var(--bg2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;transition:background .12s;text-decoration:none;color:inherit}
+.qb:hover{background:var(--bg3);border-color:var(--border2)}
+
+.empty-state{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;padding:60px 0;gap:10px;text-align:center}
+.empty-ico{font-size:36px;opacity:.3}
+.empty-txt{font-size:13px;color:var(--text3)}
+.load-state{grid-column:1/-1;display:flex;align-items:center;justify-content:center;padding:60px 0;gap:10px;color:var(--text3);font-size:13px}
+.spin{width:18px;height:18px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ══ GUIDE PAGE ══ */
+.guide-hero{
+  background:linear-gradient(135deg,#eef3ff 0%,#fdf2f8 100%);
+  padding:32px 24px 24px;border-bottom:1px solid var(--border);text-align:center;
+}
+.guide-hero h1{font-size:20px;font-weight:700;margin-bottom:6px}
+.guide-hero p{font-size:13px;color:var(--text2)}
+.guide-steps{padding:20px 20px 0;display:flex;flex-direction:column}
+.step-item{display:flex;gap:16px;padding-bottom:28px;position:relative}
+.step-item:not(:last-child)::after{content:'';position:absolute;left:19px;top:40px;width:2px;bottom:0;background:var(--border);border-radius:1px}
+.step-num{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;background:var(--accent);color:#fff;position:relative;z-index:1}
+.step-body{flex:1;padding-top:8px}
+.step-title{font-size:15px;font-weight:500;margin-bottom:5px}
+.step-desc{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:10px}
+.step-tip{display:flex;gap:8px;background:var(--ok-bg);border:1px solid #bbf7d0;border-radius:var(--r-sm);padding:9px 12px;font-size:12px;color:var(--ok)}
+.guide-faq{padding:4px 20px 24px}
+.faq-ttl{font-size:15px;font-weight:500;margin-bottom:12px}
+.faq-item{border:1px solid var(--border);border-radius:var(--r);margin-bottom:7px;overflow:hidden}
+.faq-q{padding:12px 14px;font-size:13px;font-weight:500;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:background .12s}
+.faq-q:hover{background:var(--bg2)}
+.faq-arr{font-size:10px;color:var(--text3);transition:transform .2s}
+.faq-item.open .faq-arr{transform:rotate(180deg)}
+.faq-a{display:none;padding:0 14px 12px;font-size:13px;color:var(--text2);line-height:1.7}
+.faq-item.open .faq-a{display:block}
+
+/* ══ SETTINGS PAGE ══ */
+.settings-section{padding:20px 16px 0}
+.s-hd{font-size:11px;font-weight:500;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;font-family:var(--mono);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.s-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px}
+.s-row{display:flex;align-items:center;gap:12px}
+.s-ico{font-size:20px;width:28px;text-align:center;flex-shrink:0}
+.s-info{flex:1}
+.s-lbl{font-size:14px;font-weight:500}
+.s-desc{font-size:11px;color:var(--text3);margin-top:1px}
+.s-card input[type=text],.s-card input[type=email],.s-card select{width:100%;margin-top:9px;padding:8px 11px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border-color .15s}
+.s-card input:focus,.s-card select:focus{border-color:var(--accent);background:var(--bg)}
+.lock-box{background:var(--bg2);border:2px dashed var(--border2);border-radius:var(--r);padding:24px 20px;margin-bottom:8px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;opacity:.8}
+.lock-ico{font-size:32px}
+.lock-txt{font-size:13px;color:var(--text2);line-height:1.6}
+.adm-badge{font-size:10px;color:var(--warn);background:var(--warn-bg);border:1px solid #fed7aa;border-radius:20px;padding:2px 8px;display:flex;align-items:center;gap:3px}
+.member-item{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:6px}
+.m-av{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;overflow:hidden;background:var(--bg2)}
+.m-av img{width:100%;height:100%;object-fit:cover}
+.m-info{flex:1;min-width:0}
+.m-name{font-size:13px;font-weight:500}
+.m-meta{font-size:11px;color:var(--text3)}
+.m-badges{display:flex;gap:4px;margin-top:3px;flex-wrap:wrap}
+.bdg{font-size:10px;padding:1px 6px;border-radius:20px;font-family:var(--mono);border:1px solid}
+.bdg.adm{color:var(--warn);background:var(--warn-bg);border-color:#fed7aa}
+.bdg.mem{color:var(--text3);background:var(--bg2);border-color:var(--border2)}
+.bdg.miks{color:var(--miks);background:var(--miks-bg);border-color:var(--miks-light)}
+.bdg.linnas{color:var(--linnas);background:var(--linnas-bg);border-color:var(--linnas-light)}
+.m-btn{padding:5px 10px;font-size:11px;color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);cursor:pointer;font-family:var(--font);transition:background .12s;white-space:nowrap}
+.m-btn:hover{background:var(--bg3)}
+.add-m-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;background:var(--bg2);border:1px dashed var(--border2);border-radius:var(--r);font-size:13px;color:var(--text2);cursor:pointer;transition:all .12s;font-family:var(--font);margin-bottom:8px}
+.add-m-btn:hover{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.save-btn{width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font);transition:background .15s;margin-top:4px}
+.save-btn:hover{background:var(--accent2)}
+
+/* ══ MY PAGE ══ */
+.mypage-hero{
+  position:relative;overflow:hidden;
+  background:linear-gradient(135deg,var(--miks-bg) 0%,#f8f0ff 50%,var(--linnas-bg) 100%);
+  padding:32px 20px 24px;border-bottom:1px solid var(--border);
+}
+.mypage-hero-inner{display:flex;flex-direction:column;align-items:center;gap:12px}
+.my-avatar-wrap{position:relative;cursor:pointer}
+.my-avatar{width:80px;height:80px;border-radius:50%;background:var(--bg);border:3px solid var(--bg);box-shadow:var(--sh-md);display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden}
+.my-avatar img{width:100%;height:100%;object-fit:cover}
+.my-avatar-edit{position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.my-name{font-size:20px;font-weight:700;letter-spacing:-.01em}
+.my-sub{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px}
+.my-org-badge{font-size:11px;padding:2px 9px;border-radius:20px;font-weight:500}
+.my-org-badge.miks{background:var(--miks);color:#fff}
+.my-org-badge.linnas{background:var(--linnas);color:#fff}
+
+.my-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:16px 16px 0}
+.stat-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:12px;text-align:center}
+.stat-val{font-size:22px;font-weight:700;color:var(--accent);font-family:var(--mono)}
+.stat-lbl{font-size:10px;color:var(--text3);margin-top:2px}
+
+.mypage-form{padding:16px 16px 0}
+.mf-section{margin-bottom:20px}
+.mf-title{font-size:11px;font-weight:500;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;font-family:var(--mono);margin-bottom:10px;padding-bottom:7px;border-top:1px solid var(--border);padding-top:16px}
+.mf-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mf-grid.full{grid-template-columns:1fr}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;color:var(--text2);font-family:var(--mono)}
+.field input,.field select,.field textarea{padding:8px 11px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border-color .15s,background .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);background:var(--bg)}
+.field textarea{resize:none;height:60px;line-height:1.6}
+
+/* ══ MODALS ══ */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:center;z-index:300;opacity:0;pointer-events:none;transition:opacity .18s;backdrop-filter:blur(3px)}
+.overlay.open{opacity:1;pointer-events:all}
+.sheet{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:640px;max-height:94dvh;overflow-y:auto;transform:translateY(20px);transition:transform .22s cubic-bezier(.32,1,.4,1)}
+.sheet::-webkit-scrollbar{display:none}
+.overlay.open .sheet{transform:translateY(0)}
+.sheet-handle{width:32px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 4px;cursor:pointer}
+.sheet-hd{display:flex;align-items:center;justify-content:space-between;padding:8px 20px 14px;border-bottom:1px solid var(--border)}
+.sheet-title{font-size:16px;font-weight:500}
+.sheet-x{width:28px;height:28px;border-radius:50%;background:var(--bg2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;color:var(--text2);transition:background .12s}
+.sheet-x:hover{background:var(--bg3)}
+
+/* Register steps */
+.step-dots{display:flex;align-items:center;gap:6px;padding:14px 20px}
+.sd{width:6px;height:6px;border-radius:50%;background:var(--border2);transition:all .2s}
+.sd.done{background:var(--accent);opacity:.5}
+.sd.cur{background:var(--accent);width:20px;border-radius:3px}
+.sd-lbl{font-size:11px;color:var(--text3);font-family:var(--mono);margin-left:4px}
+.rs{display:none;padding:14px 20px 28px}
+.rs.active{display:block}
+
+#cap-area{background:var(--bg2);border:2px dashed var(--border2);border-radius:var(--r-lg);height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;position:relative;overflow:hidden;transition:border-color .15s,background .15s}
+#cap-area:hover{border-color:var(--accent);background:var(--accent-bg)}
+#cap-area img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cap-hint{font-size:13px;color:var(--text3)}
+.cr{display:flex;gap:8px;margin-top:10px}
+.cb{flex:1;padding:10px;border-radius:var(--r-sm);background:var(--bg2);border:1px solid var(--border);color:var(--text);font-size:13px;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:6px;transition:background .12s,border-color .12s}
+.cb:hover{background:var(--bg3);border-color:var(--border2)}
+.cb.pri{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:500}
+.cb.pri:hover{background:var(--accent2)}
+.cb.dis{opacity:.38;pointer-events:none}
+#fi,#ci{display:none}
+
+#crop-wrap{position:relative;background:#111;border-radius:var(--r);overflow:hidden;height:220px;margin-bottom:8px}
+#crop-c{display:block;width:100%;height:100%}
+.crop-note{font-size:11px;color:var(--text3);text-align:center;margin-bottom:10px}
+
+.ocr-bar{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--accent-bg);border:1px solid var(--miks-light);border-radius:var(--r-sm);margin-bottom:16px;cursor:pointer;transition:background .12s}
+.ocr-bar:hover{background:#dce8ff}
+.ocr-txt{font-size:13px;font-weight:500;color:var(--accent);flex:1}
+.ocr-sub{font-size:11px;color:var(--text3)}
+.fsec{margin-bottom:16px}
+.fsec-t{font-size:10px;font-family:var(--mono);color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fg.full{grid-template-columns:1fr}
+
+/* Detail */
+.d-img{height:140px;overflow:hidden;display:none}
+.d-img.show{display:block}
+.d-img img{width:100%;height:100%;object-fit:cover}
+.d-body{padding:18px 20px}
+.d-co{font-size:12px;font-weight:500;color:var(--accent);margin-bottom:2px}
+.d-dept{font-size:11px;color:var(--text3);margin-bottom:9px}
+.d-name{font-size:26px;font-weight:300;letter-spacing:-.02em;margin-bottom:2px}
+.d-role{font-size:13px;color:var(--text2);margin-bottom:14px}
+.d-rows{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.d-row{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--bg2);border-radius:var(--r-sm)}
+.d-ri{font-size:13px;color:var(--text3);width:18px;text-align:center;flex-shrink:0;margin-top:1px}
+.d-rv{font-size:13px;color:var(--text);flex:1;word-break:break-all}
+.d-rv a{color:var(--accent);text-decoration:none}
+.d-acts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px}
+.d-act{display:flex;flex-direction:column;align-items:center;gap:4px;padding:11px 6px;background:var(--bg2);border-radius:var(--r-sm);border:1px solid var(--border);cursor:pointer;font-size:10px;font-family:var(--mono);color:var(--text2);transition:all .12s}
+.d-act:hover{background:var(--bg3);border-color:var(--border2);color:var(--text)}
+.d-act .dai{font-size:20px}
+.d-meta{border-top:1px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.d-mr{display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono)}
+.d-mr span:first-child{color:var(--text3)}
+.d-mr span:last-child{color:var(--text2)}
+.d-edit{width:100%;padding:11px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:13px;cursor:pointer;font-family:var(--font);transition:background .12s}
+.d-edit:hover{background:var(--bg3)}
+
+/* Member modal */
+.av-pick{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:16px}
+.av-circle{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid var(--border);overflow:hidden;cursor:pointer;transition:border-color .15s;background:var(--bg2)}
+.av-circle:hover{border-color:var(--accent)}
+.av-circle img{width:100%;height:100%;object-fit:cover}
+.av-hint{font-size:11px;color:var(--text3)}
+#av-file{display:none}
+
+/* Admin auth */
+.adm-gate{padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.adm-gate-ico{font-size:36px}
+.adm-gate-ttl{font-size:16px;font-weight:500}
+.adm-gate-desc{font-size:13px;color:var(--text2);line-height:1.6}
+.adm-input{width:100%;max-width:300px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);font-size:15px;font-family:var(--mono);text-align:center;outline:none;color:var(--text);transition:border-color .15s}
+.adm-input:focus{border-color:var(--accent);background:var(--bg)}
+.adm-btn{padding:10px 28px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font)}
+
+/* CSV IMPORT */
+#csv-drop{background:var(--bg2);border:2px dashed var(--border2);border-radius:var(--r-lg);padding:36px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer;transition:border-color .15s,background .15s;text-align:center;margin-bottom:14px}
+#csv-drop:hover,#csv-drop.drag{border-color:var(--accent);background:var(--accent-bg)}
+#csv-drop .ci-ico{font-size:32px}
+#csv-drop .ci-ttl{font-size:14px;font-weight:500}
+#csv-drop .ci-sub{font-size:12px;color:var(--text3)}
+#csv-fi{display:none}
+.csv-preview{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:14px}
+.csv-preview-hd{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);display:flex;align-items:center;justify-content:space-between}
+.csv-preview table{width:100%;border-collapse:collapse;font-size:12px}
+.csv-preview th{padding:7px 12px;background:var(--bg3);color:var(--text3);font-family:var(--mono);font-size:10px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border)}
+.csv-preview td{padding:6px 12px;border-bottom:1px solid var(--border);color:var(--text2);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.csv-preview tr:last-child td{border-bottom:none}
+.map-section{margin-bottom:16px}
+.map-hd{font-size:12px;font-weight:500;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.map-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:6px}
+.map-src{font-size:12px;font-family:var(--mono);color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.map-arr{font-size:12px;color:var(--text3);text-align:center}
+.map-sel{font-size:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 10px;color:var(--text);font-family:var(--font);outline:none;transition:border-color .15s;width:100%}
+.map-sel:focus{border-color:var(--accent)}
+.map-sel.matched{border-color:var(--ok);background:var(--ok-bg)}
+.import-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.is-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;text-align:center}
+.is-val{font-size:20px;font-weight:700;font-family:var(--mono);color:var(--accent)}
+.is-lbl{font-size:10px;color:var(--text3)}
+
+/* Toast */
+#toast{position:fixed;bottom:calc(var(--nav-h) + 16px);left:50%;transform:translateX(-50%) translateY(8px);background:#111;color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:600;opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{background:#166534}
+#toast.err{background:#991b1b}
+
+@media(max-width:480px){
+  #card-grid{grid-template-columns:1fr}
+  .fg,.mf-grid{grid-template-columns:1fr}
+  .d-acts{grid-template-columns:repeat(2,1fr)}
+  .map-grid{grid-template-columns:1fr auto 1fr}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="logo"><span class="miks">MiKS</span><span class="sep">&</span><span class="linnas">Linnas</span></div>
+    <div class="search-wrap" id="search-wrap">
+      <span class="search-ico">🔍</span>
+      <input type="search" id="q" placeholder="名前・会社・担当者で検索…">
+    </div>
+  </div>
+
+  <!-- PAGES -->
+  <div id="pages">
+    <!-- Cards -->
+    <div class="page active" id="page-cards">
+      <div id="filterbar">
+        <div class="chip active" data-f="all" onclick="setF('all',this)">すべて</div>
+        <div class="chip cm" data-f="miks" onclick="setF('miks',this)">● MiKS</div>
+        <div class="chip cl" data-f="linnas" onclick="setF('linnas',this)">● Linnas</div>
+        <div id="ow-chips"></div>
+      </div>
+      <div id="sortbar">
+        <span class="sl">並べ替え</span>
+        <div class="sb active" data-s="date-desc" onclick="setS('date-desc',this)">新しい順</div>
+        <div class="sb" data-s="date-asc" onclick="setS('date-asc',this)">古い順</div>
+        <div class="sb" data-s="company" onclick="setS('company',this)">会社名</div>
+        <div class="sb" data-s="owner" onclick="setS('owner',this)">担当者</div>
+        <div class="cnt" id="cnt">0件</div>
+      </div>
+      <div id="card-grid"><div class="load-state"><div class="spin"></div>読み込み中…</div></div>
+    </div>
+
+    <!-- Guide -->
+    <div class="page" id="page-guide">
+      <div class="guide-hero">
+        <h1>👋 はじめての方へ</h1>
+        <p>名刺帳の使い方をかんたんに説明します</p>
+      </div>
+      <div class="guide-steps">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">＋ボタンをタップしよう</div>
+            <div class="step-desc">画面右下の青いボタンをタップすると名刺の登録が始まります。</div>
+            <svg width="200" height="90" viewBox="0 0 200 90" fill="none" style="display:block;margin:8px 0">
+              <rect x="10" y="20" width="120" height="50" rx="8" fill="#f8f8f6" stroke="#e8e7e0" stroke-width="1.5"/>
+              <rect x="20" y="32" width="60" height="8" rx="3" fill="#e8e7e0"/>
+              <rect x="20" y="46" width="40" height="6" rx="3" fill="#ebebе6"/>
+              <circle cx="160" cy="55" r="24" fill="#1a56db"/>
+              <line x1="160" y1="45" x2="160" y2="65" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="150" y1="55" x2="170" y2="55" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M100 55 Q120 55 130 55" stroke="#1a56db" stroke-width="1.5" stroke-dasharray="4 3" fill="none" stroke-linecap="round" marker-end="url(#a)"/>
+              <defs><marker id="a" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6" fill="none" stroke="#1a56db" stroke-width="1.2"/></marker></defs>
+            </svg>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">名刺を撮影またはアップロード</div>
+            <div class="step-desc">スマホのカメラで名刺を撮るか、写真フォルダから選びます。<strong>白い背景</strong>に置いて真上から撮ると読み取り精度がUPします。</div>
+            <div class="step-tip">💡 写真は後でトリミング（切り抜き）できます</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">✨ AIで自動入力</div>
+            <div class="step-desc">「AIで自動入力する」ボタンを押すと、名前・会社・電話・メールなどを自動で読み取ります。内容を確認・修正してから保存してください。</div>
+            <svg width="200" height="80" viewBox="0 0 200 80" fill="none" style="display:block;margin:8px 0">
+              <rect x="10" y="20" width="55" height="40" rx="4" fill="#f0efe9" stroke="#d8d7d0" stroke-width="1.5"/>
+              <line x1="18" y1="30" x2="58" y2="30" stroke="#aaa" stroke-width="1" stroke-linecap="round"/>
+              <line x1="18" y1="38" x2="55" y2="38" stroke="#ddd" stroke-width="1" stroke-linecap="round"/>
+              <line x1="18" y1="46" x2="57" y2="46" stroke="#ddd" stroke-width="1" stroke-linecap="round"/>
+              <circle cx="100" cy="40" r="16" fill="#eef3ff" stroke="#dce8ff" stroke-width="1.5"/>
+              <text x="100" y="45" font-size="14" text-anchor="middle" font-family="sans-serif">✨</text>
+              <rect x="140" y="20" width="55" height="40" rx="4" fill="white" stroke="#dce8ff" stroke-width="1.5"/>
+              <rect x="146" y="27" width="43" height="7" rx="2" fill="#eef3ff"/>
+              <rect x="146" y="37" width="43" height="7" rx="2" fill="#eef3ff"/>
+              <rect x="146" y="47" width="43" height="7" rx="2" fill="#eef3ff"/>
+              <path d="M67 40 L82 40" stroke="#1a56db" stroke-width="1.5" stroke-linecap="round"/>
+              <polygon points="82,37 87,40 82,43" fill="#1a56db"/>
+              <path d="M118 40 L133 40" stroke="#1a56db" stroke-width="1.5" stroke-linecap="round"/>
+              <polygon points="133,37 138,40 133,43" fill="#1a56db"/>
+            </svg>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-title">「誰がもらったか」を入力</div>
+            <div class="step-desc">自分の名前が初期入力されています。代理で登録する場合は変更してください。あとでフィルターで担当者別に絞り込めます。</div>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <div class="step-title">保存して完了！</div>
+            <div class="step-desc">「保存する」を押せば登録完了です。一覧画面に名刺が追加されます。</div>
+            <svg width="200" height="80" viewBox="0 0 200 80" fill="none" style="display:block;margin:8px 0">
+              <circle cx="100" cy="38" r="28" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="2"/>
+              <path d="M85 38 L97 50 L115 26" stroke="#15803d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <circle cx="52" cy="18" r="4" fill="#fef08a"/><circle cx="152" cy="14" r="3" fill="#fbcfe8"/>
+              <circle cx="156" cy="60" r="4" fill="#bfdbfe"/><circle cx="46" cy="58" r="3" fill="#bbf7d0"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div class="guide-faq">
+        <div class="faq-ttl">❓ よくある質問</div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">OCRがうまく読み取れない <span class="faq-arr">▼</span></div><div class="faq-a">名刺を白い背景に置き、真上から撮影してみてください。斜め・暗い場所での撮影は精度が下がります。手動で修正することもできます。</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">MiKSとLinnasでデータは共有される？ <span class="faq-arr">▼</span></div><div class="faq-a">はい。同じGoogleスプレッドシートを参照しているので、両社のメンバー全員が同じデータを見られます。フィルターで会社別に絞ることも可能です。</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">登録済みの名刺を修正・削除したい <span class="faq-arr">▼</span></div><div class="faq-a">名刺をタップして詳細を開き、「✏️ 編集する」ボタンから修正できます。</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">スマホのホーム画面に追加したい <span class="faq-arr">▼</span></div><div class="faq-a">iPhone(Safari): 共有ボタン →「ホーム画面に追加」<br>Android(Chrome): メニュー →「ホーム画面に追加」</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">既存のCSVデータを取り込みたい <span class="faq-arr">▼</span></div><div class="faq-a">設定タブ →「CSVインポート」からファイルをアップロードしてください。AIがカラムを自動で判別して取り込みます。</div></div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="page" id="page-settings">
+      <div class="settings-section">
+        <div class="s-hd">👤 マイ設定</div>
+        <div class="s-card">
+          <div class="s-row"><div class="s-ico">✏️</div><div class="s-info"><div class="s-lbl">あなたの名前</div><div class="s-desc">名刺登録時の担当者欄デフォルト値</div></div></div>
+          <input type="text" id="s-myname" placeholder="例: 田中 花子">
+        </div>
+        <div class="s-card">
+          <div class="s-row"><div class="s-ico">🏢</div><div class="s-info"><div class="s-lbl">所属組織</div><div class="s-desc">登録時のデフォルト組織</div></div></div>
+          <select id="s-myorg"><option value="miks">MiKS</option><option value="linnas">Linnas</option></select>
+        </div>
+        <button class="save-btn" onclick="saveMySettings()">マイ設定を保存</button>
+      </div>
+
+      <!-- CSV IMPORT -->
+      <div class="settings-section" style="margin-top:16px">
+        <div class="s-hd">📥 CSVインポート</div>
+        <div id="csv-drop" onclick="document.getElementById('csv-fi').click()" ondragover="csvDragOver(event)" ondrop="csvDrop(event)" ondragleave="this.classList.remove('drag')">
+          <div class="ci-ico">📄</div>
+          <div class="ci-ttl">CSVファイルをドロップ、またはタップして選択</div>
+          <div class="ci-sub">どんな形式のCSVにも対応。AIがカラムを自動判別します。</div>
+        </div>
+        <input type="file" id="csv-fi" accept=".csv,text/csv" onchange="handleCSV(event)">
+        <div id="csv-area" style="display:none">
+          <div id="csv-preview" class="csv-preview"></div>
+          <div class="map-section">
+            <div class="map-hd">📋 カラムのマッピング <span id="map-ai-badge" style="font-size:10px;background:var(--accent-bg);color:var(--accent);padding:2px 8px;border-radius:20px;font-family:var(--mono)">AI自動判別済み</span></div>
+            <div id="map-grid"></div>
+          </div>
+          <div class="import-stats" id="import-stats" style="display:none">
+            <div class="is-card"><div class="is-val" id="is-total">0</div><div class="is-lbl">総件数</div></div>
+            <div class="is-card"><div class="is-val" id="is-ok" style="color:var(--ok)">0</div><div class="is-lbl">取込成功</div></div>
+            <div class="is-card"><div class="is-val" id="is-skip" style="color:var(--warn)">0</div><div class="is-lbl">スキップ</div></div>
+          </div>
+          <div class="cr">
+            <div class="cb" onclick="resetCSV()">やり直す</div>
+            <div class="cb pri" id="do-import-btn" onclick="doImport()">取り込む</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Members -->
+      <div class="settings-section" style="margin-top:16px">
+        <div class="s-hd">👥 メンバー一覧 <div id="add-m-wrap"></div></div>
+        <div id="member-list"><div class="load-state" style="padding:20px 0"><div class="spin"></div></div></div>
+      </div>
+
+      <!-- Admin -->
+      <div class="settings-section" style="margin-top:16px;padding-bottom:20px">
+        <div class="s-hd">🔒 管理者設定 <div class="adm-badge">🔐 管理者のみ</div></div>
+        <div id="admin-section">
+          <div class="lock-box">
+            <div class="lock-ico">🔐</div>
+            <div class="lock-txt">GASのURL・APIキーなどは<br>管理者のみが設定できます。</div>
+            <button class="cb" style="margin-top:4px;flex:0;padding:8px 20px" onclick="openAdminAuth()">管理者としてログイン</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- My Page -->
+    <div class="page" id="page-mypage">
+      <div class="mypage-hero">
+        <div class="mypage-hero-inner">
+          <div class="my-avatar-wrap" onclick="document.getElementById('my-av-file').click()">
+            <div class="my-avatar" id="my-avatar-display">👤</div>
+            <div class="my-avatar-edit">✏️</div>
+          </div>
+          <input type="file" id="my-av-file" accept="image/*" style="display:none" onchange="handleMyAvatar(event)">
+          <div class="my-name" id="my-name-display">ゲスト</div>
+          <div class="my-sub">
+            <span id="my-org-badge" class="my-org-badge miks">MiKS</span>
+            <span id="my-email-display" style="font-size:12px;color:var(--text2)"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="my-stats">
+        <div class="stat-card"><div class="stat-val" id="stat-total">—</div><div class="stat-lbl">登録名刺数</div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-mine">—</div><div class="stat-lbl">自分が担当</div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-org">—</div><div class="stat-lbl">自社合計</div></div>
+      </div>
+
+      <div class="mypage-form">
+        <div class="mf-section">
+          <div class="mf-title">プロフィール</div>
+          <div class="mf-grid">
+            <div class="field"><label>表示名 *</label><input id="mp-name" type="text" placeholder="田中 花子"></div>
+            <div class="field"><label>所属組織</label>
+              <select id="mp-org"><option value="miks">MiKS</option><option value="linnas">Linnas</option></select>
+            </div>
+          </div>
+          <div class="mf-grid full" style="margin-top:8px">
+            <div class="field"><label>メールアドレス</label><input id="mp-email" type="email" placeholder="hanako@example.com"></div>
+          </div>
+          <div class="mf-grid" style="margin-top:8px">
+            <div class="field"><label>電話番号</label><input id="mp-tel" type="tel" placeholder="090-xxxx-xxxx"></div>
+            <div class="field"><label>役職</label><input id="mp-role" type="text" placeholder="営業担当"></div>
+          </div>
+          <div class="mf-grid full" style="margin-top:8px">
+            <div class="field"><label>一言メモ</label><textarea id="mp-bio" placeholder="自己紹介など…"></textarea></div>
+          </div>
+        </div>
+
+        <div class="mf-section">
+          <div class="mf-title">通知・表示設定</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r)">
+              <div><div style="font-size:13px;font-weight:500">名刺登録時の担当者を自動入力</div><div style="font-size:11px;color:var(--text3)">自分の名前をデフォルト設定</div></div>
+              <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+                <input type="checkbox" id="pref-autofill" checked style="display:none">
+                <span onclick="toggleSwitch('pref-autofill',this)" id="sw-autofill" style="position:absolute;inset:0;background:var(--accent);border-radius:12px;cursor:pointer;transition:background .2s">
+                  <span style="position:absolute;top:3px;left:22px;width:18px;height:18px;background:white;border-radius:50%;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"></span>
+                </span>
+              </label>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r)">
+              <div><div style="font-size:13px;font-weight:500">カード表示を2カラムに</div><div style="font-size:11px;color:var(--text3)">オフにすると1列表示</div></div>
+              <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+                <input type="checkbox" id="pref-2col" checked style="display:none">
+                <span onclick="toggleSwitch('pref-2col',this)" id="sw-2col" style="position:absolute;inset:0;background:var(--accent);border-radius:12px;cursor:pointer;transition:background .2s">
+                  <span style="position:absolute;top:3px;left:22px;width:18px;height:18px;background:white;border-radius:50%;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"></span>
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <button class="save-btn" onclick="saveMyPage()" style="margin-bottom:16px">プロフィールを保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav id="nav">
+    <button class="nav-item active" data-page="cards" onclick="switchTab('cards',this)">
+      <div class="nav-dot"></div>
+      <span class="nav-ico">🗂</span>
+      <span class="nav-lbl">名刺一覧</span>
+    </button>
+    <button class="nav-item" data-page="guide" onclick="switchTab('guide',this)">
+      <div class="nav-dot"></div>
+      <span class="nav-ico">📖</span>
+      <span class="nav-lbl">使い方</span>
+    </button>
+    <button class="nav-item" data-page="settings" onclick="switchTab('settings',this)">
+      <div class="nav-dot"></div>
+      <span class="nav-ico">⚙️</span>
+      <span class="nav-lbl">設定</span>
+    </button>
+    <button class="nav-item" data-page="mypage" onclick="switchTab('mypage',this)">
+      <div class="nav-dot"></div>
+      <span class="nav-ico" id="nav-my-ico">👤</span>
+      <span class="nav-lbl">マイページ</span>
+    </button>
+  </nav>
+
+  <!-- FAB -->
+  <button id="fab" onclick="openRegModal()">
+    <svg viewBox="0 0 16 16" fill="none"><line x1="8" y1="2" x2="8" y2="14" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="2" y1="8" x2="14" y2="8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+    名刺を追加
+  </button>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ── REGISTER MODAL ── -->
+<div class="overlay" id="reg-modal">
+  <div class="sheet">
+    <div class="sheet-handle" onclick="closeM('reg-modal')"></div>
+    <div class="sheet-hd"><div class="sheet-title">名刺を登録</div><div class="sheet-x" onclick="closeM('reg-modal')">✕</div></div>
+    <div class="step-dots">
+      <div class="sd cur" id="sd1"></div><div class="sd" id="sd2"></div><div class="sd" id="sd3"></div>
+      <span class="sd-lbl" id="sd-lbl">撮影・アップロード</span>
+    </div>
+    <div class="rs active" id="rs1">
+      <div id="cap-area" onclick="document.getElementById('fi').click()">
+        <span style="font-size:28px">📷</span>
+        <span class="cap-hint">タップして画像を選択</span>
+      </div>
+      <input type="file" id="fi" accept="image/*" onchange="handleFile(event)">
+      <input type="file" id="ci" accept="image/*" capture="environment" onchange="handleFile(event)">
+      <div class="cr"><div class="cb" onclick="document.getElementById('ci').click()">📱 カメラで撮影</div><div class="cb" onclick="document.getElementById('fi').click()">🖼 ライブラリ</div></div>
+      <div class="cr"><div class="cb dis" id="next1" onclick="toS2()">次へ → トリミング</div></div>
+    </div>
+    <div class="rs" id="rs2">
+      <div id="crop-wrap"><canvas id="crop-c"></canvas></div>
+      <div class="crop-note">四隅のハンドルをドラッグして範囲を調整</div>
+      <div class="cr"><div class="cb" onclick="toS1()">← 戻る</div><div class="cb" onclick="resetCrop()">リセット</div><div class="cb pri" onclick="applyCrop()">✂️ 確定</div></div>
+    </div>
+    <div class="rs" id="rs3">
+      <div class="ocr-bar" id="ocr-bar" onclick="runOCR()">
+        <span id="ocr-ico" style="font-size:18px">✨</span>
+        <div><div class="ocr-txt">AIで自動入力する</div><div class="ocr-sub">名前・会社・電話・メールを読み取ります</div></div>
+      </div>
+      <div class="fsec"><div class="fsec-t">所属</div>
+        <div class="fg"><div class="field"><label>会社名 *</label><input id="f-company" type="text" placeholder="株式会社○○"></div><div class="field"><label>部署</label><input id="f-dept" type="text" placeholder="営業部"></div></div>
+      </div>
+      <div class="fsec"><div class="fsec-t">担当者</div>
+        <div class="fg"><div class="field"><label>氏名 *</label><input id="f-name" type="text" placeholder="山田 太郎"></div><div class="field"><label>役職</label><input id="f-role" type="text" placeholder="部長"></div></div>
+        <div class="fg full" style="margin-top:8px"><div class="field"><label>メール</label><input id="f-email" type="email" placeholder="taro@example.com"></div></div>
+        <div class="fg" style="margin-top:8px"><div class="field"><label>電話番号</label><input id="f-tel" type="tel" placeholder="03-xxxx-xxxx"></div><div class="field"><label>携帯番号</label><input id="f-mobile" type="tel" placeholder="090-xxxx-xxxx"></div></div>
+        <div class="fg full" style="margin-top:8px"><div class="field"><label>住所</label><input id="f-addr" type="text" placeholder="東京都…"></div></div>
+        <div class="fg full" style="margin-top:8px"><div class="field"><label>ウェブサイト</label><input id="f-url" type="url" placeholder="https://"></div></div>
+      </div>
+      <div class="fsec"><div class="fsec-t">管理情報</div>
+        <div class="fg"><div class="field"><label>自社組織 *</label><select id="f-org"><option value="miks">MiKS</option><option value="linnas">Linnas</option></select></div><div class="field"><label>受け取った担当者 *</label><input id="f-owner" type="text" placeholder="田中 花子"></div></div>
+        <div class="fg full" style="margin-top:8px"><div class="field"><label>メモ</label><textarea id="f-memo" placeholder="展示会にて交換、など…"></textarea></div></div>
+      </div>
+      <div class="cr"><div class="cb" onclick="toS1()" style="flex:0 0 auto;padding:10px 14px">← 戻る</div><div class="cb pri dis" id="save-btn" onclick="saveCard()">💾 保存する</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DETAIL MODAL ── -->
+<div class="overlay" id="detail-modal">
+  <div class="sheet">
+    <div class="sheet-handle" onclick="closeM('detail-modal')"></div>
+    <div class="d-img" id="d-img"><img id="d-img-el" src="" alt=""></div>
+    <div class="d-body">
+      <div id="d-co" class="d-co"></div><div id="d-dept" class="d-dept"></div>
+      <div id="d-name" class="d-name"></div><div id="d-role" class="d-role"></div>
+      <div class="d-rows" id="d-rows"></div>
+      <div class="d-acts"><div class="d-act" id="da-t"><div class="dai">📞</div>電話</div><div class="d-act" id="da-m"><div class="dai">✉️</div>メール</div><div class="d-act" id="da-map"><div class="dai">🗺</div>地図</div><div class="d-act" id="da-u"><div class="dai">🌐</div>URL</div></div>
+      <div class="d-meta" id="d-meta"></div>
+      <button class="d-edit" onclick="editCard()">✏️ 編集する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MEMBER MODAL ── -->
+<div class="overlay" id="member-modal">
+  <div class="sheet">
+    <div class="sheet-handle" onclick="closeM('member-modal')"></div>
+    <div class="sheet-hd"><div class="sheet-title" id="mm-ttl">メンバーを追加</div><div class="sheet-x" onclick="closeM('member-modal')">✕</div></div>
+    <div style="padding:16px 20px 28px">
+      <div class="av-pick">
+        <div class="av-circle" id="av-prev" onclick="document.getElementById('av-file').click()">👤</div>
+        <div class="av-hint">タップして写真を変更</div>
+        <input type="file" id="av-file" accept="image/*" onchange="handleAvatar(event)">
+      </div>
+      <div class="fg"><div class="field"><label>氏名 *</label><input id="m-name" type="text" placeholder="山田 花子"></div><div class="field"><label>所属 *</label><select id="m-org"><option value="miks">MiKS</option><option value="linnas">Linnas</option></select></div></div>
+      <div class="fg full" style="margin-top:8px"><div class="field"><label>メール</label><input id="m-email" type="email" placeholder="hanako@example.com"></div></div>
+      <div class="fg full" style="margin-top:8px"><div class="field"><label>電話</label><input id="m-tel" type="tel" placeholder="090-xxxx-xxxx"></div></div>
+      <div class="fg full" style="margin-top:8px"><div class="field"><label>権限</label><select id="m-role" onchange="toggleAdmField()"><option value="member">一般ユーザー</option><option value="admin">管理者</option></select></div></div>
+      <div class="fg full" style="margin-top:8px" id="m-gemail-wrap"><div class="field"><label>Googleアカウント（管理者認証用）</label><input id="m-gemail" type="email" placeholder="admin@gmail.com"></div></div>
+      <div class="cr" style="margin-top:16px"><div class="cb" onclick="closeM('member-modal')">キャンセル</div><div class="cb pri" onclick="saveMember()">保存する</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADMIN AUTH MODAL ── -->
+<div class="overlay" id="admin-modal">
+  <div class="sheet">
+    <div class="sheet-handle" onclick="closeM('admin-modal')"></div>
+    <div class="adm-gate">
+      <div class="adm-gate-ico">🔐</div>
+      <div class="adm-gate-ttl">管理者認証</div>
+      <div class="adm-gate-desc">管理者として登録されている<br>Googleアカウントのメールアドレスを入力</div>
+      <input type="email" class="adm-input" id="adm-input" placeholder="admin@example.com">
+      <button class="adm-btn" onclick="verifyAdmin()">認証する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════ STATE ════════
+let allCards=[],fCards=[];
+let curF='all',curS='date-desc';
+let curDetailId=null,isEdit=false;
+let captImg=null;
+let cropImg_,cropCv,cropCtx_;
+let cs={drag:false,h:null,sx:0,sy:0,sel:null,ix:0,iy:0,iw:0,ih:0};
+let members=[],editMId=null,avData=null,myAvData=null;
+let isAdmin=false;
+let csvRows=[],csvHeaders=[],csvMapping={};
+
+const LS={g:k=>localStorage.getItem(k)||'',s:(k,v)=>localStorage.setItem(k,v)};
+const X=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+// ════════ TABS ════════
+function switchTab(page,el){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('page-'+page).classList.add('active');
+  const showSearch=(page==='cards');
+  document.getElementById('search-wrap').style.display=showSearch?'':'none';
+  document.getElementById('fab').style.display=(page==='cards')?'':'none';
+  if(page==='settings'){loadMySettings();renderMembers()}
+  if(page==='mypage'){loadMyPageData()}
+  enableSaveBtn();
+}
+
+// ════════ MODAL ════════
+function openM(id){document.getElementById(id).classList.add('open')}
+function closeM(id){document.getElementById(id).classList.remove('open')}
+document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open')}));
+
+// ════════ TOAST ════════
+let tTmr;
+function toast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='show '+(type||'');
+  clearTimeout(tTmr);tTmr=setTimeout(()=>t.className='',2800);
+}
+
+// ════════ FAQ ════════
+function toggleFaq(el){el.closest('.faq-item').classList.toggle('open')}
+
+// ════════ TOGGLE SWITCH ════════
+function toggleSwitch(id,span){
+  const cb=document.getElementById(id);
+  cb.checked=!cb.checked;
+  const thumb=span.querySelector('span');
+  if(cb.checked){span.style.background='var(--accent)';thumb.style.left='22px'}
+  else{span.style.background='var(--border2)';thumb.style.left='3px'}
+  LS.s(id,cb.checked?'1':'0');
+}
+function initSwitches(){
+  ['pref-autofill','pref-2col'].forEach(id=>{
+    const v=LS.g(id);const cb=document.getElementById(id);
+    if(!v){cb.checked=true;return}
+    cb.checked=(v==='1');
+    const span=document.getElementById('sw-'+id.replace('pref-',''));
+    const thumb=span.querySelector('span');
+    if(!cb.checked){span.style.background='var(--border2)';thumb.style.left='3px'}
+  });
+}
+
+// ════════ LOAD CARDS ════════
+async function loadCards(){
+  document.getElementById('card-grid').innerHTML='<div class="load-state"><div class="spin"></div>読み込み中…</div>';
+  const gasUrl=LS.g('gasUrl');
+  if(!gasUrl){allCards=demo();renderCards();buildOwChips();return}
+  try{
+    const r=await fetch(gasUrl+'?action=list');
+    const d=await r.json();
+    allCards=d.cards||[];renderCards();buildOwChips();
+  }catch{allCards=demo();renderCards();buildOwChips();toast('⚠ デモデータを表示中')}
+}
+
+function demo(){return[
+  {id:'1',company:'グローバル商事',dept:'営業部',name:'鈴木 花子',role:'課長',email:'hanako@global.co.jp',tel:'03-9876-5432',mobile:'090-1111-2222',addr:'東京都渋谷区2-2-2',url:'https://global.co.jp',memo:'展示会にて交換',org:'miks',owner:'田中',imageUrl:'',createdAt:'2026-03-15'},
+  {id:'2',company:'株式会社テクノロジー',dept:'開発部',name:'山田 太郎',role:'部長',email:'taro@techco.jp',tel:'03-1234-5678',mobile:'',addr:'東京都千代田区1-1-1',url:'',memo:'',org:'linnas',owner:'佐藤',imageUrl:'',createdAt:'2026-03-15'},
+  {id:'3',company:'未来システムズ',dept:'デザインチーム',name:'佐藤 次郎',role:'リーダー',email:'jiro@mirai.co.jp',tel:'06-2345-6789',mobile:'080-3333-4444',addr:'大阪市北区1-5-3',url:'https://mirai-sys.jp',memo:'',org:'miks',owner:'田中',imageUrl:'',createdAt:'2026-03-14'},
+  {id:'4',company:'AIソリューションズ',dept:'研究開発室',name:'高橋 美紀',role:'主任研究員',email:'miki@ai-sol.co.jp',tel:'045-678-9012',mobile:'',addr:'神奈川県横浜市西区3-3-3',url:'https://ai-sol.co.jp',memo:'AI連携予定',org:'linnas',owner:'中村',imageUrl:'',createdAt:'2026-03-10'},
+  {id:'5',company:'東京フィンテック',dept:'企画部',name:'中村 健一',role:'マネージャー',email:'kenichi@tft.co.jp',tel:'03-4567-8901',mobile:'',addr:'東京都港区6-10-1',url:'',memo:'',org:'miks',owner:'佐藤',imageUrl:'',createdAt:'2026-03-08'},
+]}
+
+// ════════ RENDER CARDS ════════
+function setF(v,el){curF=v;document.querySelectorAll('.chip[data-f]').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderCards()}
+function setS(v,el){curS=v;document.querySelectorAll('.sb').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderCards()}
+
+function renderCards(){
+  const q=document.getElementById('q').value.toLowerCase();
+  let d=allCards.filter(c=>{
+    if(curF==='miks'&&c.org!=='miks')return false;
+    if(curF==='linnas'&&c.org!=='linnas')return false;
+    if(curF!=='all'&&curF!=='miks'&&curF!=='linnas'&&c.owner!==curF)return false;
+    if(q){const t=[c.company,c.dept,c.name,c.role,c.email,c.tel,c.addr,c.owner,c.memo].join(' ').toLowerCase();if(!t.includes(q))return false}
+    return true;
+  });
+  if(curS==='date-desc')d.sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+  else if(curS==='date-asc')d.sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+  else if(curS==='company')d.sort((a,b)=>a.company.localeCompare(b.company,'ja'));
+  else if(curS==='owner')d.sort((a,b)=>(a.owner||'').localeCompare(b.owner||'','ja'));
+  fCards=d;
+  document.getElementById('cnt').textContent=d.length+'件';
+  const g=document.getElementById('card-grid');
+  if(!d.length){g.innerHTML='<div class="empty-state"><div class="empty-ico">📭</div><div class="empty-txt">該当する名刺がありません</div></div>';return}
+  const use2col=LS.g('pref-2col')!=='0';
+  g.style.gridTemplateColumns=use2col?'repeat(auto-fill,minmax(288px,1fr))':'1fr';
+  g.innerHTML=d.map((c,i)=>`
+    <div class="mc org-${c.org}" onclick="openDetail('${c.id}')" style="animation-delay:${Math.min(i*.03,.25)}s">
+      <div class="mc-top"><div class="mc-org ${c.org}">${c.org==='miks'?'MiKS':'Linnas'}</div><div class="mc-date">${c.createdAt}</div></div>
+      <div class="mc-co">${X(c.company)}</div><div class="mc-dept">${X(c.dept||'')}</div>
+      <div class="mc-name">${X(c.name)}</div><div class="mc-role">${X(c.role||'')}</div>
+      <div class="mc-info">
+        ${c.tel?`<div class="mc-row"><span class="mc-ico">📞</span>${X(c.tel)}</div>`:''}
+        ${c.addr?`<div class="mc-row"><span class="mc-ico">📍</span>${X(c.addr)}</div>`:''}
+      </div>
+      <div class="mc-foot">
+        <div class="ow-chip">👤 ${X(c.owner||'—')}</div>
+        <div class="qb-wrap">
+          ${c.tel?`<a class="qb" href="tel:${c.tel}" onclick="event.stopPropagation()">📞</a>`:''}
+          ${c.email?`<a class="qb" href="mailto:${c.email}" onclick="event.stopPropagation()">✉️</a>`:''}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function buildOwChips(){
+  const owners=[...new Set(allCards.map(c=>c.owner).filter(Boolean))].sort();
+  document.getElementById('ow-chips').innerHTML=owners.map(o=>`<div class="chip" data-f="${X(o)}" onclick="setF('${X(o)}',this)">${X(o)}</div>`).join('');
+}
+document.getElementById('q').addEventListener('input',renderCards);
+
+// ════════ DETAIL ════════
+function openDetail(id){
+  const c=allCards.find(x=>x.id===id);if(!c)return;
+  curDetailId=id;
+  document.getElementById('d-co').textContent=c.company;
+  document.getElementById('d-dept').textContent=c.dept||'';
+  document.getElementById('d-name').textContent=c.name;
+  document.getElementById('d-role').textContent=c.role||'';
+  const iw=document.getElementById('d-img');
+  if(c.imageUrl){document.getElementById('d-img-el').src=c.imageUrl;iw.classList.add('show')}else iw.classList.remove('show');
+  const rows=[[c.email,'✉️',`<a href="mailto:${c.email}">${X(c.email)}</a>`],[c.tel,'📞',`<a href="tel:${c.tel}">${X(c.tel)}</a>`],[c.mobile,'📱',`<a href="tel:${c.mobile}">${X(c.mobile)}</a>`],[c.addr,'📍',X(c.addr)],[c.url,'🌐',`<a href="${c.url}" target="_blank">${X(c.url)}</a>`],[c.memo,'📝',X(c.memo)]].filter(([v])=>v);
+  document.getElementById('d-rows').innerHTML=rows.map(([,ico,val])=>`<div class="d-row"><div class="d-ri">${ico}</div><div class="d-rv">${val}</div></div>`).join('');
+  document.getElementById('da-t').onclick=()=>c.tel&&(location.href='tel:'+c.tel);
+  document.getElementById('da-m').onclick=()=>c.email&&(location.href='mailto:'+c.email);
+  document.getElementById('da-map').onclick=()=>c.addr&&window.open('https://maps.google.com/?q='+encodeURIComponent(c.addr));
+  document.getElementById('da-u').onclick=()=>c.url&&window.open(c.url);
+  document.getElementById('d-meta').innerHTML=`<div class="d-mr"><span>組織</span><span>${c.org==='miks'?'MiKS':'Linnas'}</span></div><div class="d-mr"><span>受取担当者</span><span>${c.owner||'—'}</span></div><div class="d-mr"><span>登録日</span><span>${c.createdAt}</span></div>`;
+  openM('detail-modal');
+}
+
+function editCard(){
+  const c=allCards.find(a=>a.id===curDetailId);if(!c)return;
+  closeM('detail-modal');isEdit=true;captImg=c.imageUrl||null;
+  ['company','dept','name','role','email','tel','mobile','addr','url','memo'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value=c[k]||''});
+  document.getElementById('f-org').value=c.org||'miks';
+  document.getElementById('f-owner').value=c.owner||'';
+  setRStep(3);openM('reg-modal');enableSaveBtn();
+}
+
+// ════════ REGISTER ════════
+function openRegModal(){
+  isEdit=false;captImg=null;curDetailId=null;
+  const s={myOrg:LS.g('myOrg')||'miks',myName:LS.g('myName')};
+  document.getElementById('f-org').value=s.myOrg;
+  document.getElementById('f-owner').value=s.myName;
+  ['company','dept','name','role','email','tel','mobile','addr','url','memo'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value=''});
+  setRStep(1);openM('reg-modal');
+}
+
+function setRStep(n){
+  document.querySelectorAll('.rs').forEach(el=>el.classList.remove('active'));
+  document.getElementById('rs'+n).classList.add('active');
+  ['sd1','sd2','sd3'].forEach((id,i)=>{const d=document.getElementById(id);d.className='sd'+(i+1<n?' done':i+1===n?' cur':'')});
+  document.getElementById('sd-lbl').textContent=['撮影・アップロード','トリミング','情報入力・保存'][n-1];
+}
+
+function toS1(){captImg=null;document.getElementById('cap-area').innerHTML='<span style="font-size:28px">📷</span><span class="cap-hint">タップして画像を選択</span>';document.getElementById('next1').classList.add('dis');setRStep(1)}
+function toS2(){if(!captImg)return;setRStep(2);initCrop()}
+function toS3(){setRStep(3);enableSaveBtn()}
+
+function handleFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    captImg=ev.target.result;
+    const a=document.getElementById('cap-area');a.innerHTML='';
+    const img=document.createElement('img');img.src=captImg;
+    img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;';
+    a.appendChild(img);
+    document.getElementById('next1').classList.remove('dis');
+  };r.readAsDataURL(file);e.target.value='';
+}
+
+function enableSaveBtn(){
+  const company=document.getElementById('f-company')?.value.trim();
+  const name=document.getElementById('f-name')?.value.trim();
+  const btn=document.getElementById('save-btn');
+  if(!btn)return;
+  if(company&&name)btn.classList.remove('dis');else btn.classList.add('dis');
+}
+['f-company','f-name'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',enableSaveBtn)});
+
+// ════════ CROP ════════
+function initCrop(){
+  const wrap=document.getElementById('crop-wrap');
+  cropCv=document.getElementById('crop-c');
+  const ww=wrap.offsetWidth||320,wh=220;
+  cropCv.width=ww;cropCv.height=wh;
+  cropCtx_=cropCv.getContext('2d');
+  cropImg_=new Image();
+  cropImg_.onload=()=>{
+    const sc=Math.min(ww/cropImg_.width,wh/cropImg_.height);
+    const iw=cropImg_.width*sc,ih=cropImg_.height*sc;
+    cs.ix=(ww-iw)/2;cs.iy=(wh-ih)/2;cs.iw=iw;cs.ih=ih;
+    cs.sel={x:cs.ix+8,y:cs.iy+8,w:iw-16,h:ih-16};drawCrop();
+  };cropImg_.src=captImg;
+  addCropEv();
+}
+function drawCrop(){
+  const cv=cropCv,c=cropCtx_,{ix,iy,iw,ih,sel}=cs;
+  c.clearRect(0,0,cv.width,cv.height);c.drawImage(cropImg_,ix,iy,iw,ih);
+  if(!sel)return;
+  c.fillStyle='rgba(0,0,0,.4)';c.fillRect(ix,iy,iw,ih);
+  c.clearRect(sel.x,sel.y,sel.w,sel.h);
+  c.drawImage(cropImg_,(sel.x-ix)/iw*cropImg_.width,(sel.y-iy)/ih*cropImg_.height,sel.w/iw*cropImg_.width,sel.h/ih*cropImg_.height,sel.x,sel.y,sel.w,sel.h);
+  c.strokeStyle='#1a56db';c.lineWidth=1.5;c.strokeRect(sel.x,sel.y,sel.w,sel.h);
+  [[sel.x,sel.y],[sel.x+sel.w,sel.y],[sel.x,sel.y+sel.h],[sel.x+sel.w,sel.y+sel.h]].forEach(([hx,hy])=>{c.fillStyle='#fff';c.strokeStyle='#1a56db';c.lineWidth=1.5;c.beginPath();c.arc(hx,hy,6,0,Math.PI*2);c.fill();c.stroke()});
+}
+function addCropEv(){
+  function pos(e){const r=cropCv.getBoundingClientRect();const s=e.touches?e.touches[0]:e;return{x:(s.clientX-r.left)*(cropCv.width/r.width),y:(s.clientY-r.top)*(cropCv.height/r.height)}}
+  function dn(e){e.preventDefault();const{x,y}=pos(e);const s=cs.sel;if(!s)return;const hs=[[s.x,s.y,'tl'],[s.x+s.w,s.y,'tr'],[s.x,s.y+s.h,'bl'],[s.x+s.w,s.y+s.h,'br']];const hit=hs.find(([hx,hy])=>Math.hypot(x-hx,y-hy)<14);if(hit)cs.h=hit[2];else if(x>=s.x&&x<=s.x+s.w&&y>=s.y&&y<=s.y+s.h)cs.h='move';else{cs.sel={x,y,w:0,h:0};cs.h='br'}cs.drag=true;cs.sx=x;cs.sy=y}
+  function mv(e){if(!cs.drag)return;e.preventDefault();const{x,y}=pos(e);const dx=x-cs.sx,dy=y-cs.sy;cs.sx=x;cs.sy=y;const s=cs.sel,{ix,iy,iw,ih}=cs;if(cs.h==='move'){s.x=Math.max(ix,Math.min(ix+iw-s.w,s.x+dx));s.y=Math.max(iy,Math.min(iy+ih-s.h,s.y+dy))}else if(cs.h==='br'){s.w=Math.max(20,x-s.x);s.h=Math.max(20,y-s.y)}else if(cs.h==='tr'){s.w=Math.max(20,x-s.x);s.y+=dy;s.h=Math.max(20,s.h-dy)}else if(cs.h==='bl'){s.x+=dx;s.w=Math.max(20,s.w-dx);s.h=Math.max(20,y-s.y)}else if(cs.h==='tl'){s.x+=dx;s.w=Math.max(20,s.w-dx);s.y+=dy;s.h=Math.max(20,s.h-dy)}drawCrop()}
+  function up(){cs.drag=false}
+  cropCv.addEventListener('mousedown',dn);cropCv.addEventListener('mousemove',mv);cropCv.addEventListener('mouseup',up);
+  cropCv.addEventListener('touchstart',dn,{passive:false});cropCv.addEventListener('touchmove',mv,{passive:false});cropCv.addEventListener('touchend',up);
+}
+function resetCrop(){initCrop()}
+function applyCrop(){
+  const{sel,ix,iy,iw,ih}=cs;
+  const sx=(sel.x-ix)/iw*cropImg_.width,sy=(sel.y-iy)/ih*cropImg_.height;
+  const sw=sel.w/iw*cropImg_.width,sh=sel.h/ih*cropImg_.height;
+  const out=document.createElement('canvas');out.width=sw;out.height=sh;
+  out.getContext('2d').drawImage(cropImg_,sx,sy,sw,sh,0,0,sw,sh);
+  captImg=out.toDataURL('image/jpeg',.9);toS3();
+}
+
+// ════════ OCR ════════
+async function runOCR(){
+  const apiKey=LS.g('apiKey');
+  if(!captImg){toast('先に名刺画像を選択してください','err');return}
+  if(!apiKey){toast('設定からAPIキーを入力してください','err');return}
+  const ico=document.getElementById('ocr-ico');const bar=document.getElementById('ocr-bar');
+  bar.style.opacity='.6';bar.style.pointerEvents='none';
+  ico.innerHTML='<div class="spin" style="border-top-color:#1a56db;border-color:#dce8ff"></div>';
+  const b64=captImg.split(',')[1];const mt=captImg.startsWith('data:image/png')?'image/png':'image/jpeg';
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-opus-4-6',max_tokens:600,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mt,data:b64}},{type:'text',text: 'この名刺画像から情報を抽出してください。日本のビジネス名刺の形式に基づき、正確に抽出すること。\n以下のJSON形式のみで返してください（前後に余計な説明は不要です）:\n{"company":"","dept":"","name":"","role":"","email":"","tel":"","mobile":"","addr":"","url":""}\n- nameは姓名の間にスペースを入れる。\n- 住所は都道府県から記載。\n- 役職(role)が複数ある場合は代表的なものを一つ。\n- 不明な項目は空文字にする。''}]}]})});
+    const d=await res.json();
+    const j=JSON.parse(d.content?.[0]?.text?.trim()||'{}');
+    Object.entries(j).forEach(([k,v])=>{const el=document.getElementById('f-'+k);if(el&&v)el.value=v});
+    toast('自動入力しました。確認してください ✓','ok');enableSaveBtn();
+  }catch(e){toast('OCRエラー: '+e.message,'err')}
+  bar.style.opacity='';bar.style.pointerEvents='';ico.textContent='✨';
+}
+
+// ════════ SAVE CARD ════════
+async function saveCard(){
+  const company=document.getElementById('f-company').value.trim();
+  const name=document.getElementById('f-name').value.trim();
+  if(!company||!name){toast('会社名と氏名は必須です','err');return}
+  const btn=document.getElementById('save-btn');btn.textContent='保存中…';btn.classList.add('dis');
+  const card={id:isEdit&&curDetailId?curDetailId:Date.now().toString(),company,dept:document.getElementById('f-dept').value.trim(),name,role:document.getElementById('f-role').value.trim(),email:document.getElementById('f-email').value.trim(),tel:document.getElementById('f-tel').value.trim(),mobile:document.getElementById('f-mobile').value.trim(),addr:document.getElementById('f-addr').value.trim(),url:document.getElementById('f-url').value.trim(),memo:document.getElementById('f-memo').value.trim(),org:document.getElementById('f-org').value,owner:document.getElementById('f-owner').value.trim(),imageData:captImg,createdAt:new Date().toISOString().slice(0,10)};
+  const gasUrl=LS.g('gasUrl');
+  if(gasUrl){try{await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:isEdit?'update':'add',card})})}catch{toast('GAS保存エラー（ローカルのみ更新）','err')}}
+  const idx=allCards.findIndex(c=>c.id===card.id);
+  const saved={...card,imageUrl:typeof captImg==='string'&&captImg.startsWith('data:')?captImg:(allCards[idx]?.imageUrl||'')};
+  if(idx>=0)allCards[idx]=saved;else allCards.unshift(saved);
+  closeM('reg-modal');renderCards();buildOwChips();toast('保存しました ✓','ok');
+  btn.textContent='💾 保存する';btn.classList.remove('dis');isEdit=false;
+}
+
+// ════════ CSV IMPORT ════════
+function csvDragOver(e){e.preventDefault();e.currentTarget.classList.add('drag')}
+function csvDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)processCSV(f)}
+function handleCSV(e){const f=e.target.files[0];if(f)processCSV(f);e.target.value=''}
+
+function parseCSV(text){
+  const lines=text.trim().split(/\r?\n/);
+  const headers=parseCSVLine(lines[0]);
+  const rows=lines.slice(1).filter(l=>l.trim()).map(l=>parseCSVLine(l));
+  return{headers,rows};
+}
+function parseCSVLine(line){
+  const r=[];let f='',inQ=false;
+  for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(inQ&&line[i+1]==='"'){f+='"';i++}else inQ=!inQ}else if(c===','&&!inQ){r.push(f.trim());f=''}else f+=c}
+  r.push(f.trim());return r;
+}
+
+function processCSV(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const text=e.target.result;
+    const{headers,rows}=parseCSV(text);
+    csvHeaders=headers;csvRows=rows;
+    showCSVPreview();autoMapColumns();
+    document.getElementById('csv-area').style.display='';
+    document.getElementById('csv-drop').style.display='none';
+    document.getElementById('import-stats').style.display='none';
+  };reader.readAsText(file,'UTF-8');
+}
+
+function showCSVPreview(){
+  const preview=document.getElementById('csv-preview');
+  const sample=csvRows.slice(0,3);
+  preview.innerHTML=`<div class="csv-preview-hd"><span>プレビュー（最初の3件）</span><span style="font-family:var(--mono);color:var(--text3)">${csvRows.length}件</span></div><div style="overflow-x:auto"><table><thead><tr>${csvHeaders.map(h=>`<th>${X(h)}</th>`).join('')}</tr></thead><tbody>${sample.map(row=>`<tr>${row.map((_,i)=>`<td>${X(row[i]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+
+// AI-style auto mapping using keyword matching
+const FIELD_MAP={
+  company:['会社','company','企業','法人','corporation','corp','社名','会社名'],
+  dept:['部署','department','dept','部門','division','所属','チーム','team'],
+  name:['氏名','名前','name','姓名','氏　名','full name','担当者名'],
+  role:['役職','title','position','肩書','職位','job title'],
+  email:['メール','email','e-mail','mail','電子メール','メールアドレス','e_mail'],
+  tel:['電話','tel','phone','固定電話','telephone','tel番号','phone number'],
+  mobile:['携帯','mobile','cell','スマホ','モバイル','携帯電話','cell phone'],
+  addr:['住所','address','addr','所在地','アドレス','郵便番号'],
+  url:['url','ウェブ','website','web','ホームページ','hp','サイト','site'],
+  memo:['メモ','memo','note','備考','コメント','comment','remark'],
+};
+
+function autoMapColumns(){
+  csvMapping={};
+  const used=new Set();
+  csvHeaders.forEach(h=>{
+    const hl=h.toLowerCase().replace(/[_\s]/g,'');
+    let bestField=null,bestScore=0;
+    Object.entries(FIELD_MAP).forEach(([field,kws])=>{
+      if(used.has(field))return;
+      kws.forEach(kw=>{
+        const kwl=kw.toLowerCase().replace(/[_\s]/g,'');
+        let score=0;
+        if(hl===kwl)score=100;
+        else if(hl.includes(kwl)||kwl.includes(hl))score=50+kwl.length;
+        if(score>bestScore){bestScore=score;bestField=field}
+      });
+    });
+    if(bestField&&bestScore>30){csvMapping[h]=bestField;used.add(bestField)}
+    else csvMapping[h]='';
+  });
+  renderMappingUI();
+}
+
+const FIELD_LABELS={company:'会社名',dept:'部署',name:'氏名',role:'役職',email:'メール',tel:'電話番号',mobile:'携帯番号',addr:'住所',url:'URL',memo:'メモ',owner:'担当者','':'（無視）'};
+
+function renderMappingUI(){
+  const grid=document.getElementById('map-grid');
+  grid.innerHTML=csvHeaders.map(h=>{
+    const matched=csvMapping[h]&&csvMapping[h]!=='';
+    const opts=Object.entries(FIELD_LABELS).map(([v,l])=>`<option value="${v}"${csvMapping[h]===v?' selected':''}>${l}</option>`).join('');
+    return`<div class="map-grid"><div class="map-src" title="${X(h)}">${X(h)}</div><div class="map-arr">→</div><select class="map-sel${matched?' matched':''}" data-col="${X(h)}" onchange="updateMapping(this)">${opts}</select></div>`;
+  }).join('');
+}
+
+function updateMapping(sel){
+  csvMapping[sel.dataset.col]=sel.value;
+  sel.className='map-sel'+(sel.value&&sel.value!==''?' matched':'');
+}
+
+async function doImport(){
+  const btn=document.getElementById('do-import-btn');
+  btn.textContent='取り込み中…';btn.classList.add('dis');
+  let ok=0,skip=0;
+  const gasUrl=LS.g('gasUrl');
+  const myOrg=LS.g('myOrg')||'miks';
+  const myName=LS.g('myName')||'';
+  const today=new Date().toISOString().slice(0,10);
+
+  for(const row of csvRows){
+    const card={id:Date.now().toString()+(Math.random()*10000|0),createdAt:today,org:myOrg,owner:myName,imageUrl:'',imageData:''};
+    let hasName=false,hasCo=false;
+    csvHeaders.forEach((h,i)=>{
+      const field=csvMapping[h];
+      if(field&&field!==''){card[field]=row[i]||'';if(field==='name'&&row[i])hasName=true;if(field==='company'&&row[i])hasCo=true}
+    });
+    if(!hasName&&!hasCo){skip++;continue}
+    if(!card.company)card.company='（会社名なし）';
+    if(!card.name)card.name='（氏名なし）';
+    if(gasUrl){try{await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:'add',card})})}catch{}}
+    allCards.unshift({...card});ok++;
+    // small delay to avoid rate limiting
+    if(ok%10===0)await new Promise(r=>setTimeout(r,200));
+  }
+
+  document.getElementById('is-total').textContent=csvRows.length;
+  document.getElementById('is-ok').textContent=ok;
+  document.getElementById('is-skip').textContent=skip;
+  document.getElementById('import-stats').style.display='grid';
+  renderCards();buildOwChips();updateMyStats();
+  toast(`${ok}件取り込みました ✓`,'ok');
+  btn.textContent='取り込む';btn.classList.remove('dis');
+}
+
+function resetCSV(){
+  csvRows=[];csvHeaders=[];csvMapping={};
+  document.getElementById('csv-area').style.display='none';
+  document.getElementById('csv-drop').style.display='';
+  document.getElementById('csv-fi').value='';
+}
+
+// ════════ SETTINGS ════════
+function loadMySettings(){
+  document.getElementById('s-myname').value=LS.g('myName');
+  document.getElementById('s-myorg').value=LS.g('myOrg')||'miks';
+}
+function saveMySettings(){
+  LS.s('myName',document.getElementById('s-myname').value.trim());
+  LS.s('myOrg',document.getElementById('s-myorg').value);
+  toast('設定を保存しました ✓','ok');
+  loadMyPageData();
+}
+
+// ════════ MEMBERS ════════
+function loadMembers(){
+  const raw=LS.g('members');
+  members=raw?JSON.parse(raw):[
+    {id:'m1',name:'田中 花子',org:'miks',email:'hanako@miks.co.jp',tel:'090-1111-0001',role:'admin',gEmail:'hanako@gmail.com',avatar:''},
+    {id:'m2',name:'佐藤 次郎',org:'miks',email:'jiro@miks.co.jp',tel:'090-2222-0002',role:'member',gEmail:'',avatar:''},
+    {id:'m3',name:'中村 健一',org:'linnas',email:'kenichi@linnas.co.jp',tel:'090-3333-0003',role:'member',gEmail:'',avatar:''},
+  ];
+}
+function saveMembers(){LS.s('members',JSON.stringify(members))}
+
+function renderMembers(){
+  loadMembers();
+  document.getElementById('add-m-wrap').innerHTML=isAdmin?'<div class="m-btn" onclick="openAddMember()">＋ 追加</div>':'';
+  document.getElementById('member-list').innerHTML=members.map(m=>{
+    const ini=m.name.split(' ').map(p=>p[0]).join('').slice(0,2);
+    const bgs=['#eef3ff','#fdf2f8','#f0fdf4','#fffbeb'];
+    return`<div class="member-item"><div class="m-av" style="background:${bgs[parseInt(m.id.replace(/\D/g,''))%4]}">${m.avatar?`<img src="${m.avatar}" alt="">`:`<span>${ini}</span>`}</div><div class="m-info"><div class="m-name">${X(m.name)}</div><div class="m-meta">${X(m.email||m.tel||'')}</div><div class="m-badges"><span class="bdg ${m.role==='admin'?'adm':'mem'}">${m.role==='admin'?'管理者':'一般'}</span><span class="bdg ${m.org}">${m.org==='miks'?'MiKS':'Linnas'}</span></div></div>${isAdmin?`<div class="m-btn" onclick="openEditMember('${m.id}')">編集</div>`:''}</div>`;
+  }).join('');
+}
+
+function openAddMember(){editMId=null;avData=null;document.getElementById('mm-ttl').textContent='メンバーを追加';['m-name','m-email','m-tel','m-gemail'].forEach(id=>document.getElementById(id).value='');document.getElementById('m-org').value='miks';document.getElementById('m-role').value='member';document.getElementById('av-prev').innerHTML='👤';toggleAdmField();openM('member-modal')}
+
+function openEditMember(id){
+  const m=members.find(mm=>mm.id===id);if(!m)return;
+  editMId=id;avData=m.avatar||null;
+  document.getElementById('mm-ttl').textContent='メンバーを編集';
+  document.getElementById('m-name').value=m.name||'';
+  document.getElementById('m-org').value=m.org||'miks';
+  document.getElementById('m-email').value=m.email||'';
+  document.getElementById('m-tel').value=m.tel||'';
+  document.getElementById('m-role').value=m.role||'member';
+  document.getElementById('m-gemail').value=m.gEmail||'';
+  document.getElementById('av-prev').innerHTML=m.avatar?`<img src="${m.avatar}" alt="">`:'👤';
+  toggleAdmField();openM('member-modal');
+}
+
+function toggleAdmField(){document.getElementById('m-gemail-wrap').style.display=document.getElementById('m-role').value==='admin'?'':'none'}
+
+function handleAvatar(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{avData=ev.target.result;document.getElementById('av-prev').innerHTML=`<img src="${avData}" alt="">`;};r.readAsDataURL(f);e.target.value=''}
+
+function saveMember(){
+  const name=document.getElementById('m-name').value.trim();if(!name){toast('氏名は必須です','err');return}
+  const m={id:editMId||'m'+Date.now(),name,org:document.getElementById('m-org').value,email:document.getElementById('m-email').value.trim(),tel:document.getElementById('m-tel').value.trim(),role:document.getElementById('m-role').value,gEmail:document.getElementById('m-gemail').value.trim(),avatar:avData||''};
+  if(editMId){const i=members.findIndex(mm=>mm.id===editMId);if(i>=0)members[i]=m}else members.push(m);
+  saveMembers();closeM('member-modal');renderMembers();toast('メンバーを保存しました ✓','ok');
+}
+
+// ════════ ADMIN AUTH ════════
+function openAdminAuth(){openM('admin-modal')}
+function verifyAdmin(){
+  const email=document.getElementById('adm-input').value.trim().toLowerCase();
+  loadMembers();
+  const admins=members.filter(m=>m.role==='admin'&&m.gEmail).map(m=>m.gEmail.toLowerCase());
+  if(admins.includes(email)){
+    isAdmin=true;closeM('admin-modal');renderMembers();renderAdminSection();toast('管理者として認証しました ✓','ok');
+  }else{toast('認証できませんでした','err')}
+}
+
+function renderAdminSection(){
+  const w=document.getElementById('admin-section');
+  if(!isAdmin){w.innerHTML=`<div class="lock-box"><div class="lock-ico">🔐</div><div class="lock-txt">管理者のみが設定できます。</div><button class="cb" style="flex:0;padding:8px 20px" onclick="openAdminAuth()">管理者としてログイン</button></div>`;return}
+  w.innerHTML=`
+    <div class="s-card"><div class="s-row"><div class="s-ico">🔗</div><div class="s-info"><div class="s-lbl">GAS WebアプリURL</div><div class="s-desc">バックエンドのエンドポイント</div></div></div><input type="text" id="s-gas-url" placeholder="https://script.google.com/macros/s/xxxx/exec" value="${LS.g('gasUrl')}"></div>
+    <div class="s-card"><div class="s-row"><div class="s-ico">✨</div><div class="s-info"><div class="s-lbl">Anthropic APIキー（OCR用）</div><div class="s-desc">Claude Vision で自動入力</div></div></div><input type="text" id="s-api-key" placeholder="sk-ant-..." value="${LS.g('apiKey')}"></div>
+    <div class="s-card"><div class="s-row"><div class="s-ico">📊</div><div class="s-info"><div class="s-lbl">スプレッドシートID</div></div></div><input type="text" id="s-sheet-id" placeholder="1BxiMVs0XRA..." value="${LS.g('sheetId')}"></div>
+    <div class="s-card"><div class="s-row"><div class="s-ico">📁</div><div class="s-info"><div class="s-lbl">Drive フォルダID</div></div></div><input type="text" id="s-folder-id" placeholder="1BxiMVs0XRA..." value="${LS.g('folderId')}"></div>
+    <button class="save-btn" onclick="saveAdminSettings()">管理者設定を保存</button>
+    <div style="margin-top:10px;padding:12px;background:var(--bg2);border-radius:var(--r);font-size:11px;color:var(--text3);line-height:1.8;border:1px solid var(--border)">① スプシ作成（シート名:名刺データ）→ ② Driveフォルダ作成（リンク共有:閲覧可）→ ③ gas-backend.gsをデプロイ → ④ スクリプトプロパティにSHEET_ID/FOLDER_IDを設定</div>`;
+}
+
+function saveAdminSettings(){
+  LS.s('gasUrl',document.getElementById('s-gas-url')?.value.trim()||'');
+  LS.s('apiKey',document.getElementById('s-api-key')?.value.trim()||'');
+  LS.s('sheetId',document.getElementById('s-sheet-id')?.value.trim()||'');
+  LS.s('folderId',document.getElementById('s-folder-id')?.value.trim()||'');
+  toast('管理者設定を保存しました ✓','ok');loadCards();
+}
+
+// ════════ MY PAGE ════════
+function loadMyPageData(){
+  const name=LS.g('myName')||'ゲスト';
+  const org=LS.g('myOrg')||'miks';
+  const email=LS.g('mpEmail')||'';
+  const tel=LS.g('mpTel')||'';
+  const role=LS.g('mpRole')||'';
+  const bio=LS.g('mpBio')||'';
+  const av=LS.g('myAvatar')||'';
+  document.getElementById('my-name-display').textContent=name;
+  document.getElementById('my-org-badge').textContent=org==='miks'?'MiKS':'Linnas';
+  document.getElementById('my-org-badge').className='my-org-badge '+org;
+  document.getElementById('my-email-display').textContent=email;
+  document.getElementById('mp-name').value=name;
+  document.getElementById('mp-org').value=org;
+  document.getElementById('mp-email').value=email;
+  document.getElementById('mp-tel').value=tel;
+  document.getElementById('mp-role').value=role;
+  document.getElementById('mp-bio').value=bio;
+  const avEl=document.getElementById('my-avatar-display');
+  if(av){avEl.innerHTML=`<img src="${av}" alt="">`;document.getElementById('nav-my-ico').textContent=''}
+  else avEl.innerHTML='👤';
+  updateMyStats();
+  initSwitches();
+}
+
+function updateMyStats(){
+  const total=allCards.length;
+  const myName=LS.g('myName')||'';
+  const myOrg=LS.g('myOrg')||'miks';
+  const mine=allCards.filter(c=>c.owner===myName).length;
+  const orgCount=allCards.filter(c=>c.org===myOrg).length;
+  document.getElementById('stat-total').textContent=total;
+  document.getElementById('stat-mine').textContent=mine;
+  document.getElementById('stat-org').textContent=orgCount;
+}
+
+function handleMyAvatar(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    myAvData=ev.target.result;
+    LS.s('myAvatar',myAvData);
+    document.getElementById('my-avatar-display').innerHTML=`<img src="${myAvData}" alt="">`;
+    document.getElementById('nav-my-ico').innerHTML=`<img src="${myAvData}" style="width:24px;height:24px;border-radius:50%;object-fit:cover" alt="">`;
+    toast('アバターを更新しました ✓','ok');
+  };r.readAsDataURL(f);e.target.value='';
+}
+
+function saveMyPage(){
+  const name=document.getElementById('mp-name').value.trim();
+  const org=document.getElementById('mp-org').value;
+  LS.s('myName',name);LS.s('myOrg',org);
+  LS.s('mpEmail',document.getElementById('mp-email').value.trim());
+  LS.s('mpTel',document.getElementById('mp-tel').value.trim());
+  LS.s('mpRole',document.getElementById('mp-role').value.trim());
+  LS.s('mpBio',document.getElementById('mp-bio').value.trim());
+  document.getElementById('my-name-display').textContent=name||'ゲスト';
+  document.getElementById('my-org-badge').textContent=org==='miks'?'MiKS':'Linnas';
+  document.getElementById('my-org-badge').className='my-org-badge '+org;
+  toast('プロフィールを保存しました ✓','ok');
+}
+
+// ════════ INIT ════════
+document.getElementById('search-wrap').style.display='';
+document.getElementById('fab').style.display='';
+loadCards();
+initSwitches();
+toggleAdmField();
+
+setTimeout(()=>{
+  if(!LS.g('gasUrl')&&!LS.g('hintShown')){
+    toast('⚙ 設定タブからGASのURLを入力してください');
+    LS.s('hintShown','1');
+  }
+},1500);
+</script>
+</body>
+</html>

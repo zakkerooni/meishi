@@ -1,0 +1,16 @@
+{
+  "name": "名刺帳 — MiKS & Linnas",
+  "short_name": "名刺帳",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a56db",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/9374/9374934.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
