@@ -11,7 +11,8 @@
 <link rel="manifest" href="manifest.json">
 <script src="https://accounts.google.com/gsi/client" async></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
 <style>
 /* ══ TOKENS ══ */
 :root{
@@ -27,9 +28,16 @@
   --r:8px;--r-sm:6px;--r-lg:14px;--r-xl:20px;
   --sh:0 1px 4px rgba(0,0,0,.07),0 0 0 1px rgba(0,0,0,.04);
   --sh-md:0 8px 24px rgba(0,0,0,.1),0 2px 6px rgba(0,0,0,.06);
-  --font:'Noto Sans JP',sans-serif;
-  --mono:'DM Mono',monospace;
-  --display:'Syne',sans-serif;
+  /* フォントスタック
+     英: Inter → system-ui(-apple-system=SF Pro on iPhone)
+     日: 游ゴシック体 → Noto Sans JP フォールバック */
+  --font:'Inter','Yu Gothic Medium','游ゴシック Medium','游ゴシック体','YuGothic','Noto Sans JP',system-ui,-apple-system,sans-serif;
+  --font-bold:'Inter','Yu Gothic','游ゴシック','YuGothic','Noto Sans JP',system-ui,-apple-system,sans-serif;
+  --mono:'DM Mono',ui-monospace,'SF Mono',monospace;
+  --display:'Inter','Yu Gothic Medium','游ゴシック Medium','游ゴシック体',system-ui,-apple-system,sans-serif;
+  --ls:0.025em; /* 基本カーニング：少し広め */
+  --ls-tight:0.01em;
+  --ls-wide:0.05em;
   --nav-h:64px;
   /* テーマカスタマイズ（管理者設定で上書き可） */
   --theme-accent:#1a56db;
@@ -67,7 +75,18 @@
 #login-loading{display:none;flex-direction:column;align-items:center;gap:12px;margin-top:20px}
 #login-loading.show{display:flex}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.6}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.6;letter-spacing:var(--ls);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+
+/* ══ Material Symbols ══ */
+.ms{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;
+  font-size:20px;display:inline-flex;align-items:center;justify-content:center;
+  line-height:1;letter-spacing:normal;text-transform:none;white-space:nowrap;
+  word-wrap:normal;direction:ltr;-webkit-font-smoothing:antialiased;
+  font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24;
+  vertical-align:middle;flex-shrink:0}
+.ms.fill{font-variation-settings:'FILL' 1,'wght' 300,'GRAD' 0,'opsz' 24}
+.ms.sm{font-size:16px}
+.ms.lg{font-size:24px}
 
 /* ══ SHELL ══ */
 #app{display:flex;flex-direction:column;height:100dvh}
@@ -80,16 +99,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   flex-shrink:0;position:sticky;top:0;z-index:20;
 }
 .logo{
-  font-family:var(--font);font-size:18px;font-weight:700;white-space:nowrap;line-height:1;
-  letter-spacing:-.01em;display:flex;align-items:center;gap:0;
+  font-family:var(--display);font-size:18px;font-weight:700;white-space:nowrap;line-height:1;
+  letter-spacing:var(--ls-tight);display:flex;align-items:center;gap:0;
 }
 .logo-meishi{
-  /* 名刺整理くん スタイル: 丸ゴシック風 太字 スカイブルー */
   color:#00aeef;
-  font-size:19px;font-weight:900;letter-spacing:.02em;
-  text-shadow:-1px -1px 0 rgba(0,0,0,.25),1px -1px 0 rgba(0,0,0,.25),-1px 1px 0 rgba(0,0,0,.25),1px 1px 0 rgba(0,0,0,.25);
-  /* アップロード画像の太丸ゴシック感を近似 */
-  -webkit-text-stroke:.5px rgba(0,0,0,.2);
+  font-size:18px;font-weight:700;letter-spacing:.04em;
+  -webkit-text-stroke:.3px rgba(0,0,0,.15);
 }
 /* fallback for older logo structure */
 .logo .miks{color:var(--miks)}
@@ -130,7 +146,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .nav-item:hover{color:var(--text2)}
 .nav-item.active{color:var(--accent)}
 .nav-item.active .nav-dot{opacity:1;transform:scale(1)}
-.nav-ico{font-size:20px;line-height:1;transition:transform .2s}
+.nav-ico{font-size:22px;line-height:1;transition:transform .2s;letter-spacing:normal}
 .nav-item.active .nav-ico{transform:translateY(-1px)}
 .nav-lbl{font-size:10px;font-weight:500;letter-spacing:.01em}
 .nav-dot{
@@ -207,9 +223,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .kana-section-hd{
   position:sticky;top:0;z-index:5;
   padding:4px 16px;background:var(--bg2);
-  font-size:12px;font-weight:600;color:var(--text2);
-  font-family:var(--mono);border-bottom:1px solid var(--border);
-  letter-spacing:.05em;
+  font-size:11px;font-weight:600;color:var(--text3);
+  font-family:var(--mono);border-bottom:0.5px solid var(--border);
+  letter-spacing:var(--ls-wide);
 }
 .kana-card-row{
   display:flex;align-items:center;gap:12px;
@@ -289,24 +305,26 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 }
 #eight-list::-webkit-scrollbar{display:none}
 .el-month{
-  padding:6px 16px;font-size:12px;font-weight:600;
+  padding:6px 16px;font-size:11px;font-weight:600;
   color:var(--text3);background:var(--bg2);
   border-bottom:1px solid var(--border);
-  position:sticky;top:0;z-index:4;letter-spacing:.02em;
+  border-top:1px solid var(--border);
+  position:sticky;top:0;z-index:4;letter-spacing:var(--ls-wide);
+  font-family:var(--mono);
 }
 .el-row{
   display:flex;align-items:center;gap:12px;
-  padding:12px 16px;border-bottom:1px solid var(--border);
+  padding:13px 16px;border-bottom:0.5px solid var(--border2);
   cursor:pointer;transition:background .1s;
   animation:fu .18s ease both;
 }
 .el-row:active{background:var(--bg2)}
 .el-left{flex:1;min-width:0}
-.el-name{font-size:17px;font-weight:500;color:var(--text);
+.el-name{font-size:17px;font-weight:600;color:var(--text);letter-spacing:var(--ls);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .el-kana{font-size:11px;color:var(--text3);margin-bottom:1px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.el-co{font-size:13px;color:var(--text2);
+.el-co{font-size:13px;color:var(--text2);letter-spacing:var(--ls-tight);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 .el-dept{font-size:11px;color:var(--text3);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -507,7 +525,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .img-zoom-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer}
 /* Eight風ヘッダー */
 .d-eight-header{padding:16px 20px 12px;border-bottom:1px solid var(--border)}
-.d-eight-name{font-size:24px;font-weight:600;color:var(--text);letter-spacing:-.01em;margin-bottom:2px}
+.d-eight-name{font-size:23px;font-weight:600;color:var(--text);letter-spacing:var(--ls-tight);margin-bottom:2px;font-family:var(--font-bold)}
 .d-eight-kana{font-size:12px;color:var(--text3);margin-bottom:8px;font-family:var(--mono)}
 .d-eight-actions{display:flex;gap:8px;align-items:center}
 .d-act-circle{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;border:1.5px solid var(--border2);background:var(--bg);transition:background .12s;flex-shrink:0}
@@ -522,7 +540,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .d-card-img-placeholder{margin:16px 20px;height:80px;background:var(--bg2);border:1px dashed var(--border2);border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text3);font-size:13px}
 /* 会社情報バー */
 .d-company-bar{padding:12px 20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg)}
-.d-co-name{font-size:15px;font-weight:600;color:var(--text)}
+.d-co-name{font-size:14px;font-weight:600;color:var(--text);letter-spacing:var(--ls)}
 /* 詳細情報リスト (Eight風) */
 .d-info-list{display:flex;flex-direction:column}
 .d-info-row{display:flex;align-items:center;gap:14px;padding:13px 20px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
@@ -530,7 +548,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .d-info-row.no-action{cursor:default}
 .d-info-row.no-action:hover{background:transparent}
 .d-info-ico{font-size:18px;color:var(--text3);width:22px;text-align:center;flex-shrink:0}
-.d-info-val{font-size:14px;color:var(--accent);flex:1;word-break:break-all}
+.d-info-val{font-size:14px;color:var(--accent);flex:1;word-break:break-all;letter-spacing:var(--ls-tight)}
 .d-info-val.plain{color:var(--text)}
 .d-info-tag{font-size:10px;border:1px solid var(--border2);border-radius:4px;padding:1px 5px;color:var(--text3);font-family:var(--mono);flex-shrink:0}
 /* メタ情報 */
@@ -632,7 +650,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div id="topbar">
     <div class="logo"><span class="logo-meishi" id="app-logo-text">名刺整理くん</span></div>
     <div class="search-wrap" id="search-wrap">
-      <span class="search-ico">🔍</span>
+      <span class="ms sm" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none">search</span>
       <input type="search" id="q" placeholder="名前・会社・担当者で検索…">
     </div>
     <div id="topbar-user" style="display:none;align-items:center;gap:6px;flex-shrink:0">
@@ -917,29 +935,29 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <nav id="nav">
     <button class="nav-item active" data-page="cards" onclick="switchTab('cards',this)">
       <div class="nav-dot"></div>
-      <span class="nav-ico">🗂</span>
+      <span class="ms nav-ico" style="font-size:22px">contacts</span>
       <span class="nav-lbl">名刺一覧</span>
     </button>
     <button class="nav-item" data-page="guide" onclick="switchTab('guide',this)">
       <div class="nav-dot"></div>
-      <span class="nav-ico">📖</span>
+      <span class="ms nav-ico" style="font-size:22px">help_outline</span>
       <span class="nav-lbl">使い方</span>
     </button>
     <button class="nav-item" data-page="settings" onclick="switchTab('settings',this)">
       <div class="nav-dot"></div>
-      <span class="nav-ico">⚙️</span>
+      <span class="ms nav-ico" style="font-size:22px">settings</span>
       <span class="nav-lbl">設定</span>
     </button>
     <button class="nav-item" data-page="mypage" onclick="switchTab('mypage',this)">
       <div class="nav-dot"></div>
-      <span class="nav-ico" id="nav-my-ico">👤</span>
+      <span class="ms nav-ico" id="nav-my-ico" style="font-size:22px">person</span>
       <span class="nav-lbl">マイページ</span>
     </button>
   </nav>
 
   <!-- FAB -->
   <button id="fab" onclick="openRegModal()">
-    <svg viewBox="0 0 16 16" fill="none"><line x1="8" y1="2" x2="8" y2="14" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="2" y1="8" x2="14" y2="8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+    <span class="ms" style="font-size:20px;color:white">add</span>
     名刺を追加
   </button>
 </div>
@@ -1020,10 +1038,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div id="d-name" class="d-eight-name"></div>
       <div id="d-role-sub" style="font-size:12px;color:var(--text3);margin-bottom:10px"></div>
       <div class="d-eight-actions">
-        <div class="d-act-circle" id="da-t" title="電話">📞</div>
-        <div class="d-act-circle" id="da-m" title="メール">✉️</div>
-        <div class="d-act-map" id="da-map">🗺 地図で見る</div>
-        <div class="d-act-circle" id="da-u" title="URL">🌐</div>
+        <div class="d-act-circle" id="da-t" title="電話"><span class="ms fill" style="font-size:20px">call</span></div>
+        <div class="d-act-circle" id="da-m" title="メール"><span class="ms" style="font-size:20px">mail</span></div>
+        <div class="d-act-map" id="da-map"><span class="ms sm">map</span> 地図で見る</div>
+        <div class="d-act-circle" id="da-u" title="URL"><span class="ms" style="font-size:20px">language</span></div>
       </div>
     </div>
     <!-- 名刺画像エリア -->
@@ -1440,7 +1458,7 @@ function renderEightList(data) {
           ${card.role?`<div class="el-role">${X(card.role)}</div>`:''}
         </div>
         <div class="el-thumb">
-          ${imgSrc?`<img src="${imgSrc}" alt="">`:'📷'}
+          ${imgSrc?`<img src="${imgSrc}" alt=""><span class="ms" style="position:absolute;bottom:2px;right:2px;font-size:12px;color:rgba(255,255,255,.7);background:rgba(0,0,0,.3);border-radius:2px;padding:0 1px">open_in_full</span>`:'<span class="ms" style="font-size:22px;color:var(--text3)">photo_camera</span>'}
         </div>
       </div>`;
     }).join('')}
@@ -1549,13 +1567,13 @@ function openDetail(id){
   const addrDisp = zipM?zipM[2]:addrFull;
 
   const infoRows = [
-    c.tel   && {ico:'📞', val:c.tel,   href:'tel:'+c.tel,          tag:''},
-    c.mobile&& {ico:'📞', val:c.mobile,href:'tel:'+c.mobile,       tag:'携帯'},
-    c.email && {ico:'✉️', val:c.email, href:'mailto:'+c.email,     tag:''},
-    zipDisp && {ico:'📮', val:zipDisp, href:null,                   tag:''},
-    addrDisp&& {ico:'📍', val:addrDisp,href:'https://maps.google.com/?q='+encodeURIComponent(c.addr),tag:''},
-    c.memo  && {ico:'📝', val:c.memo,  href:null,                   tag:'', plain:true},
-    c.url   && {ico:'🌐', val:c.url,   href:c.url,                 tag:'', ext:true},
+    c.tel   && {ico:'<span class="ms sm">call</span>', val:c.tel,   href:'tel:'+c.tel,          tag:''},
+    c.mobile&& {ico:'<span class="ms sm">smartphone</span>', val:c.mobile,href:'tel:'+c.mobile,       tag:'携帯'},
+    c.email && {ico:'<span class="ms sm">mail</span>', val:c.email, href:'mailto:'+c.email,     tag:''},
+    zipDisp && {ico:'<span class="ms sm">markunread_mailbox</span>', val:zipDisp, href:null,                   tag:''},
+    addrDisp&& {ico:'<span class="ms sm">location_on</span>', val:addrDisp,href:'https://maps.google.com/?q='+encodeURIComponent(c.addr),tag:''},
+    c.memo  && {ico:'<span class="ms sm">notes</span>', val:c.memo,  href:null,                   tag:'', plain:true},
+    c.url   && {ico:'<span class="ms sm">language</span>', val:c.url,   href:c.url,                 tag:'', ext:true},
   ].filter(Boolean);
 
   document.getElementById('d-rows').innerHTML = infoRows.map(row => {
