@@ -194,6 +194,72 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .sb.active{color:var(--accent);border-color:var(--accent);background:var(--accent-bg)}
 .cnt{margin-left:auto;font-size:11px;font-family:var(--mono);color:var(--text3)}
 
+/* ── あかさたな索引 ── */
+#kana-index-wrap{
+  display:none;position:relative;flex-shrink:0;
+}
+#kana-index-wrap.show{display:flex}
+#card-list-view{
+  flex:1;overflow-y:auto;padding:0 0 80px;
+}
+#card-list-view::-webkit-scrollbar{width:3px}
+#card-list-view::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.kana-section-hd{
+  position:sticky;top:0;z-index:5;
+  padding:4px 16px;background:var(--bg2);
+  font-size:12px;font-weight:600;color:var(--text2);
+  font-family:var(--mono);border-bottom:1px solid var(--border);
+  letter-spacing:.05em;
+}
+.kana-card-row{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 16px;border-bottom:1px solid var(--border);
+  cursor:pointer;transition:background .1s;
+  animation:fu .2s ease both;
+}
+.kana-card-row:hover{background:var(--bg2)}
+.kana-avatar{
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:600;overflow:hidden;
+}
+.kana-avatar img{width:100%;height:100%;object-fit:cover}
+.kana-info{flex:1;min-width:0}
+.kana-name{font-size:15px;font-weight:500;color:var(--text)}
+.kana-sub{font-size:12px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kana-org{font-size:10px;padding:1px 6px;border-radius:20px;font-family:var(--mono);font-weight:500;flex-shrink:0}
+.kana-org.miks{background:var(--miks-light);color:var(--miks)}
+.kana-org.linnas{background:var(--linnas-light);color:var(--linnas)}
+/* 右端の索引バー */
+#kana-sidebar{
+  position:absolute;right:0;top:0;bottom:0;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:4px 2px;gap:1px;z-index:10;
+  background:transparent;
+}
+.kana-sid-item{
+  font-size:10px;font-weight:600;color:var(--accent);
+  padding:1px 5px;cursor:pointer;text-align:center;
+  border-radius:4px;transition:background .1s;user-select:none;
+  font-family:var(--mono);
+}
+.kana-sid-item:hover{background:var(--accent-bg)}
+.kana-sid-item.active{background:var(--accent);color:white}
+
+/* ── 詳細画面 表裏切り替え ── */
+.d-img-switcher{
+  display:none;position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  display:flex;gap:4px;z-index:2;
+}
+.d-img-switcher.show{display:flex}
+.d-side-btn{
+  padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;
+  cursor:pointer;border:none;font-family:var(--font);
+  transition:all .15s;
+}
+.d-side-btn.active{background:var(--accent);color:white}
+.d-side-btn:not(.active){background:rgba(0,0,0,.45);color:rgba(255,255,255,.8)}
+
 #card-grid{
   flex:1;overflow-y:auto;padding:12px 16px 8px;
   display:grid;grid-template-columns:repeat(auto-fill,minmax(288px,1fr));
@@ -522,9 +588,16 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
         <div class="sb" data-s="date-asc" onclick="setS('date-asc',this)">古い順</div>
         <div class="sb" data-s="company" onclick="setS('company',this)">会社名</div>
         <div class="sb" data-s="owner" onclick="setS('owner',this)">担当者</div>
+        <div class="sb" data-s="kana" onclick="setS('kana',this)">あかさたな</div>
         <div class="cnt" id="cnt">0件</div>
       </div>
+      <!-- カードグリッド（通常） -->
       <div id="card-grid"><div class="load-state"><div class="spin"></div>読み込み中…</div></div>
+      <!-- あかさたなリスト（索引付き） -->
+      <div id="kana-index-wrap">
+        <div id="card-list-view"></div>
+        <div id="kana-sidebar"></div>
+      </div>
     </div>
 
     <!-- Guide -->
@@ -844,7 +917,17 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       </div>
       <div class="fsec"><div class="fsec-t">管理情報</div>
         <div class="fg"><div class="field"><label>自社組織 *</label><select id="f-org"><option value="miks">MiKS</option><option value="linnas">Linnas</option></select></div><div class="field"><label>受け取った担当者 *</label><input id="f-owner" type="text" placeholder="田中 花子"></div></div>
+        <div class="fg" style="margin-top:8px">
+          <div class="field"><label>名刺交換日</label><input id="f-exchangedAt" type="date"></div>
+          <div class="field"></div>
+        </div>
         <div class="fg full" style="margin-top:8px"><div class="field"><label>メモ</label><textarea id="f-memo" placeholder="展示会にて交換、など…"></textarea></div></div>
+      </div>
+      <div class="fsec"><div class="fsec-t">裏面画像（任意）</div>
+        <div id="cap-area-back" style="background:var(--bg2);border:1px dashed var(--border2);border-radius:var(--r);height:80px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;position:relative;overflow:hidden;font-size:12px;color:var(--text3)" onclick="document.getElementById('fi-back').click()">
+          <span>📷 裏面を追加（任意）</span>
+        </div>
+        <input type="file" id="fi-back" accept="image/*" style="display:none" onchange="handleFileBack(event)">
       </div>
       <div class="cr"><div class="cb" onclick="toS1()" style="flex:0 0 auto;padding:10px 14px">← 戻る</div><div class="cb pri dis" id="save-btn" onclick="saveCard()">💾 保存する</div></div>
     </div>
@@ -858,6 +941,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="d-img" id="d-img" onclick="openImgZoom()">
       <img id="d-img-el" src="" alt="">
       <div class="d-img-tap-hint">タップで拡大</div>
+      <div class="d-img-switcher" id="d-img-switcher">
+        <button class="d-side-btn active" onclick="event.stopPropagation();switchImgSide(0,this)">表</button>
+        <button class="d-side-btn" onclick="event.stopPropagation();switchImgSide(1,this)">裏</button>
+      </div>
     </div>
     <div class="d-img-placeholder" id="d-img-placeholder">
       <span style="font-size:28px;opacity:.3">📷</span>
@@ -1002,7 +1089,12 @@ function demo(){return[
 
 // ════════ RENDER CARDS ════════
 function setF(v,el){curF=v;document.querySelectorAll('.chip[data-f]').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderCards()}
-function setS(v,el){curS=v;document.querySelectorAll('.sb').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderCards()}
+function setS(v,el){
+  curS=v;
+  document.querySelectorAll('.sb').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderCards();
+}
 
 function renderCards(){
   const q=document.getElementById('q').value.toLowerCase();
@@ -1019,6 +1111,20 @@ function renderCards(){
   else if(curS==='owner')d.sort((a,b)=>(a.owner||'').localeCompare(b.owner||'','ja'));
   fCards=d;
   document.getElementById('cnt').textContent=d.length+'件';
+
+  // あかさたなモードの切り替え
+  const kanaWrap=document.getElementById('kana-index-wrap');
+  const grid=document.getElementById('card-grid');
+  if(curS==='kana'){
+    grid.style.display='none';
+    kanaWrap.classList.add('show');
+    renderKanaList(d);
+    return;
+  } else {
+    grid.style.display='';
+    kanaWrap.classList.remove('show');
+  }
+
   const g=document.getElementById('card-grid');
   if(!d.length){g.innerHTML='<div class="empty-state"><div class="empty-ico">📭</div><div class="empty-txt">該当する名刺がありません</div></div>';return}
   const use2col=LS.g('pref-2col')!=='0';
@@ -1042,6 +1148,116 @@ function renderCards(){
     </div>`).join('');
 }
 
+
+// ════════ あかさたな索引リスト ════════
+const KANA_ROWS = ['あ','か','さ','た','な','は','ま','や','ら','わ','A','#'];
+const KANA_MAP = {
+  'あ':['あ','い','う','え','お'],
+  'か':['か','き','く','け','こ'],
+  'さ':['さ','し','す','せ','そ'],
+  'た':['た','ち','つ','て','と'],
+  'な':['な','に','ぬ','ね','の'],
+  'は':['は','ひ','ふ','へ','ほ'],
+  'ま':['ま','み','む','め','も'],
+  'や':['や','ゆ','よ'],
+  'ら':['ら','り','る','れ','ろ'],
+  'わ':['わ','を','ん'],
+  'A': 'alpha',
+};
+
+function getKanaGroup(name) {
+  if (!name) return '#';
+  // ひらがな・カタカナの先頭文字で判定
+  const ch = name[0];
+  const code = ch.charCodeAt(0);
+  // カタカナ → ひらがなに変換
+  const hira = code >= 0x30A0 && code <= 0x30FF
+    ? String.fromCharCode(code - 0x60) : ch;
+  for (const [group, chars] of Object.entries(KANA_MAP)) {
+    if (chars === 'alpha') {
+      if (/[a-zA-Zａ-ｚＡ-Ｚ]/.test(ch)) return 'A';
+      continue;
+    }
+    if (chars.some(k => hira >= k && hira <= k.replace(/.$/, c => String.fromCharCode(c.charCodeAt(0)+4)))) {
+      // 簡易判定: 行の先頭文字コード範囲
+    }
+    if (chars.includes(hira)) return group;
+  }
+  // 漢字などはふりがな取得を試みる（なければ#）
+  if (/[一-鿿]/.test(ch)) return '#';
+  if (/[a-zA-Zａ-ｚＡ-Ｚ]/.test(ch)) return 'A';
+  return '#';
+}
+
+function renderKanaList(data) {
+  // 名前でソート
+  const sorted = [...data].sort((a,b) => a.name.localeCompare(b.name,'ja'));
+
+  // グループ化
+  const groups = {};
+  KANA_ROWS.forEach(k => groups[k] = []);
+  sorted.forEach(c => {
+    const g = getKanaGroup(c.name);
+    if (groups[g]) groups[g].push(c);
+    else groups['#'].push(c);
+  });
+
+  const listEl = document.getElementById('card-list-view');
+  const sideEl = document.getElementById('kana-sidebar');
+  const existingGroups = KANA_ROWS.filter(k => groups[k].length > 0);
+
+  // 索引バー
+  sideEl.innerHTML = existingGroups.map(k =>
+    `<div class="kana-sid-item" data-kana="${k}" onclick="scrollToKana('${k}')">${k}</div>`
+  ).join('');
+
+  // リスト
+  const colors = ['#eef3ff','#fdf2f8','#f0fdf4','#fffbeb','#f5f5f3'];
+  listEl.innerHTML = existingGroups.map(k => `
+    <div class="kana-section-hd" id="kana-sec-${k}">${k}</div>
+    ${groups[k].map((card,i) => {
+      const ini = card.name ? card.name.split(' ').map(p=>p[0]).join('').slice(0,2) : '?';
+      const bg = colors[Math.abs(card.id.charCodeAt(0))%colors.length];
+      const imgSrc = card.imageUrl || card.imageData || '';
+      return `<div class="kana-card-row" onclick="openDetail('${card.id}')">
+        <div class="kana-avatar" style="background:${bg}">
+          ${imgSrc ? `<img src="${imgSrc}" alt="">` : `<span>${X(ini)}</span>`}
+        </div>
+        <div class="kana-info">
+          <div class="kana-name">${X(card.name)}</div>
+          <div class="kana-sub">${X(card.company||'')}${card.dept?' · '+X(card.dept):''}</div>
+        </div>
+        <div class="kana-org ${card.org}">${card.org==='miks'?'MiKS':'Linnas'}</div>
+      </div>`;
+    }).join('')}
+  `).join('');
+}
+
+function scrollToKana(k) {
+  const el = document.getElementById('kana-sec-'+k);
+  if (el) {
+    el.scrollIntoView({behavior:'smooth', block:'start'});
+    // アクティブ状態
+    document.querySelectorAll('.kana-sid-item').forEach(i=>i.classList.remove('active'));
+    const sid = document.querySelector(`.kana-sid-item[data-kana="${k}"]`);
+    if(sid) sid.classList.add('active');
+  }
+}
+
+// スクロール連動でサイドバーを更新
+document.getElementById('card-list-view').addEventListener('scroll', function(){
+  const sections = document.querySelectorAll('.kana-section-hd');
+  let current = '';
+  sections.forEach(sec => {
+    if (sec.offsetTop - this.scrollTop <= 30) current = sec.id.replace('kana-sec-','');
+  });
+  if (current) {
+    document.querySelectorAll('.kana-sid-item').forEach(i=>i.classList.remove('active'));
+    const sid = document.querySelector(`.kana-sid-item[data-kana="${current}"]`);
+    if(sid) sid.classList.add('active');
+  }
+});
+
 function buildOwChips(){
   const owners=[...new Set(allCards.map(c=>c.owner).filter(Boolean))].sort();
   document.getElementById('ow-chips').innerHTML=owners.map(o=>`<div class="chip" data-f="${X(o)}" onclick="setF('${X(o)}',this)">${X(o)}</div>`).join('');
@@ -1058,16 +1274,29 @@ function openDetail(id){
   document.getElementById('d-role').textContent=c.role||'';
   const iw=document.getElementById('d-img');
   const ph=document.getElementById('d-img-placeholder');
-  // imageUrl (Drive) or imageData (base64 local) どちらでも表示
-  const imgSrc = c.imageUrl || c.imageData || '';
-  if(imgSrc){
-    document.getElementById('d-img-el').src=imgSrc;
-    document.getElementById('img-zoom-el').src=imgSrc;
+  const switcher=document.getElementById('d-img-switcher');
+  // 表面画像
+  const frontSrc = c.imageUrl || c.imageData || '';
+  // 裏面画像
+  const backSrc = c.imageUrl2 || c.imageData2 || '';
+  // 現在表示中の画像インデックスをリセット
+  window._detailImgSides = [frontSrc, backSrc].filter(Boolean);
+  if(frontSrc){
+    document.getElementById('d-img-el').src=frontSrc;
+    document.getElementById('img-zoom-el').src=frontSrc;
     iw.classList.add('show');
     if(ph) ph.classList.remove('show');
+    // 裏面があれば切り替えボタンを表示
+    if(backSrc){
+      switcher.classList.add('show');
+      switcher.querySelectorAll('.d-side-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+    } else {
+      switcher.classList.remove('show');
+    }
   } else {
     iw.classList.remove('show');
     if(ph) ph.classList.add('show');
+    switcher.classList.remove('show');
   }
   const rows=[[c.email,'✉️',`<a href="mailto:${c.email}">${X(c.email)}</a>`],[c.tel,'📞',`<a href="tel:${c.tel}">${X(c.tel)}</a>`],[c.mobile,'📱',`<a href="tel:${c.mobile}">${X(c.mobile)}</a>`],[c.addr,'📍',X(c.addr)],[c.url,'🌐',`<a href="${c.url}" target="_blank">${X(c.url)}</a>`],[c.memo,'📝',X(c.memo)]].filter(([v])=>v);
   document.getElementById('d-rows').innerHTML=rows.map(([,ico,val])=>`<div class="d-row"><div class="d-ri">${ico}</div><div class="d-rv">${val}</div></div>`).join('');
@@ -1075,8 +1304,17 @@ function openDetail(id){
   document.getElementById('da-m').onclick=()=>c.email&&(location.href='mailto:'+c.email);
   document.getElementById('da-map').onclick=()=>c.addr&&window.open('https://maps.google.com/?q='+encodeURIComponent(c.addr));
   document.getElementById('da-u').onclick=()=>c.url&&window.open(c.url);
-  document.getElementById('d-meta').innerHTML=`<div class="d-mr"><span>組織</span><span>${c.org==='miks'?'MiKS':'Linnas'}</span></div><div class="d-mr"><span>受取担当者</span><span>${c.owner||'—'}</span></div><div class="d-mr"><span>登録日</span><span>${c.createdAt}</span></div>`;
+  document.getElementById('d-meta').innerHTML=`<div class="d-mr"><span>組織</span><span>${c.org==='miks'?'MiKS':'Linnas'}</span></div><div class="d-mr"><span>受取担当者</span><span>${c.owner||'—'}</span></div>${c.exchangedAt?`<div class="d-mr"><span>名刺交換日</span><span>${c.exchangedAt}</span></div>`:''}<div class="d-mr"><span>登録日</span><span>${c.createdAt}</span></div>`;
   openM('detail-modal');
+}
+
+
+function switchImgSide(idx, btn) {
+  const sides = window._detailImgSides || [];
+  if (!sides[idx]) return;
+  document.getElementById('d-img-el').src = sides[idx];
+  document.getElementById('img-zoom-el').src = sides[idx];
+  document.querySelectorAll('.d-side-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
 }
 
 function openImgZoom(){
@@ -1091,7 +1329,9 @@ function closeImgZoom(){
 function editCard(){
   const c=allCards.find(a=>a.id===curDetailId);if(!c)return;
   closeM('detail-modal');isEdit=true;captImg=c.imageUrl||null;
-  ['company','dept','name','role','email','tel','mobile','addr','url','memo'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value=c[k]||''});
+  ['company','dept','name','role','email','tel','mobile','addr','url','memo','exchangedAt'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value=c[k]||''});
+  captImgBack = c.imageData2 || null;
+  if(captImgBack){const ab=document.getElementById('cap-area-back');if(ab){ab.innerHTML='';const img=document.createElement('img');img.src=captImgBack;img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;';ab.appendChild(img);}}
   document.getElementById('f-org').value=c.org||'miks';
   document.getElementById('f-owner').value=c.owner||'';
   setRStep(3);openM('reg-modal');enableSaveBtn();
@@ -1117,6 +1357,25 @@ function setRStep(n){
 function toS1(){captImg=null;document.getElementById('cap-area').innerHTML='<span style="font-size:28px">📷</span><span class="cap-hint">タップして画像を選択</span>';document.getElementById('next1').classList.add('dis');setRStep(1)}
 function toS2(){if(!captImg)return;setRStep(2);initCrop()}
 function toS3(){setRStep(3);enableSaveBtn()}
+
+
+let captImgBack = null;
+
+function handleFileBack(e) {
+  const file = e.target.files[0]; if(!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    captImgBack = ev.target.result;
+    const area = document.getElementById('cap-area-back');
+    area.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = captImgBack;
+    img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;';
+    area.appendChild(img);
+  };
+  r.readAsDataURL(file);
+  e.target.value = '';
+}
 
 function handleFile(e){
   const file=e.target.files[0];if(!file)return;
@@ -1404,7 +1663,7 @@ async function saveCard(){
   const name=document.getElementById('f-name').value.trim();
   if(!company||!name){toast('会社名と氏名は必須です','err');return}
   const btn=document.getElementById('save-btn');btn.textContent='保存中…';btn.classList.add('dis');
-  const card={id:isEdit&&curDetailId?curDetailId:Date.now().toString(),company,dept:document.getElementById('f-dept').value.trim(),name,role:document.getElementById('f-role').value.trim(),email:document.getElementById('f-email').value.trim(),tel:document.getElementById('f-tel').value.trim(),mobile:document.getElementById('f-mobile').value.trim(),addr:document.getElementById('f-addr').value.trim(),url:document.getElementById('f-url').value.trim(),memo:document.getElementById('f-memo').value.trim(),org:document.getElementById('f-org').value,owner:document.getElementById('f-owner').value.trim(),imageData:captImg,createdAt:new Date().toISOString().slice(0,10)};
+  const card={id:isEdit&&curDetailId?curDetailId:Date.now().toString(),company,dept:document.getElementById('f-dept').value.trim(),name,role:document.getElementById('f-role').value.trim(),email:document.getElementById('f-email').value.trim(),tel:document.getElementById('f-tel').value.trim(),mobile:document.getElementById('f-mobile').value.trim(),addr:document.getElementById('f-addr').value.trim(),url:document.getElementById('f-url').value.trim(),memo:document.getElementById('f-memo').value.trim(),org:document.getElementById('f-org').value,owner:document.getElementById('f-owner').value.trim(),exchangedAt:document.getElementById('f-exchangedAt')?.value||'',imageData:captImg,imageData2:captImgBack||'',createdAt:new Date().toISOString().slice(0,10)};
   const gasUrl=LS.g('gasUrl');
   if(gasUrl){try{await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:isEdit?'update':'add',card})})}catch{toast('GAS保存エラー（ローカルのみ更新）','err')}}
   const idx=allCards.findIndex(c=>c.id===card.id);
@@ -1461,12 +1720,15 @@ const FIELD_MAP={
   dept:['部署','department','dept','部門','division','所属','チーム','team'],
   name:['氏名','名前','name','姓名','氏　名','full name','担当者名'],
   role:['役職','title','position','肩書','職位','job title'],
-  email:['メール','email','e-mail','mail','電子メール','メールアドレス','e_mail'],
-  tel:['電話','tel','phone','固定電話','telephone','tel番号','phone number'],
+  email:['メール','email','e-mail','mail','電子メール','メールアドレス','e_mail','e−mail'],
+  tel:['TEL会社','tel会社','電話会社','会社電話','tel','phone','固定電話','telephone'],
   mobile:['携帯','mobile','cell','スマホ','モバイル','携帯電話','cell phone'],
-  addr:['住所','address','addr','所在地','アドレス','郵便番号'],
+  addr:['住所','address','addr','所在地'],
+  zip:['郵便番号','zip','postal','〒'],
   url:['url','ウェブ','website','web','ホームページ','hp','サイト','site'],
+  exchangedAt:['名刺交換日','交換日','exchange','met','交換'],
   memo:['メモ','memo','note','備考','コメント','comment','remark'],
+  _ignore:['TEL直通','TEL部門','tel直通','tel部門','直通','内線','Eightでつながっている人','eight','再データ化','プレミアム','?を含む'],
 };
 
 function autoMapColumns(){
@@ -1491,7 +1753,7 @@ function autoMapColumns(){
   renderMappingUI();
 }
 
-const FIELD_LABELS={company:'会社名',dept:'部署',name:'氏名',role:'役職',email:'メール',tel:'電話番号',mobile:'携帯番号',addr:'住所',url:'URL',memo:'メモ',owner:'担当者','':'（無視）'};
+const FIELD_LABELS={company:'会社名',dept:'部署',name:'氏名',role:'役職',email:'メール',tel:'電話番号（固定）',mobile:'携帯番号',addr:'住所',zip:'郵便番号',url:'URL',exchangedAt:'名刺交換日',memo:'メモ',owner:'担当者','_ignore':'（無視）','':'（無視）'};
 
 function renderMappingUI(){
   const grid=document.getElementById('map-grid');
@@ -1519,10 +1781,27 @@ async function doImport(){
   for(const row of csvRows){
     const card={id:Date.now().toString()+(Math.random()*10000|0),createdAt:today,org:myOrg,owner:myName,imageUrl:'',imageData:''};
     let hasName=false,hasCo=false;
+    const zipVal = {}; // 郵便番号を一時保存
     csvHeaders.forEach((h,i)=>{
       const field=csvMapping[h];
-      if(field&&field!==''){card[field]=row[i]||'';if(field==='name'&&row[i])hasName=true;if(field==='company'&&row[i])hasCo=true}
+      if(!field||field===''||field==='_ignore') return;
+      const val=(row[i]||'').trim();
+      if(field==='zip'){ zipVal.zip=val; return; }
+      if(field==='addr'){ zipVal.addr=val; return; }
+      if(field==='exchangedAt'&&val){
+        // 日付フォーマット統一 YYYY-MM-DD
+        const d=new Date(val);
+        card.exchangedAt=isNaN(d)?val:d.toISOString().slice(0,10);
+        return;
+      }
+      card[field]=val;
+      if(field==='name'&&val)hasName=true;
+      if(field==='company'&&val)hasCo=true;
     });
+    // 郵便番号+住所を結合
+    if(zipVal.zip||zipVal.addr){
+      card.addr = zipVal.zip ? '〒'+zipVal.zip+' '+(zipVal.addr||'') : zipVal.addr||'';
+    }
     if(!hasName&&!hasCo){skip++;continue}
     if(!card.company)card.company='（会社名なし）';
     if(!card.name)card.name='（氏名なし）';
