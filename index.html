@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#ffffff">
 <title>名刺整理くん</title>
 <link rel="manifest" href="manifest.json">
+<script src="https://accounts.google.com/gsi/client" async></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&family=Syne:wght@600;700&display=swap" rel="stylesheet">
 <style>
@@ -41,8 +42,30 @@
   --theme-org2-bg:#fdf2f8;
   --theme-org2-light:#fce7f3;
   --theme-nav-style:underline; /* underline | pill */
-  --card-bg:#fafafa;
+  --card-bg:#f5f5f3;
 }
+/* ══ LOGIN SCREEN ══ */
+#login-screen{
+  position:fixed;inset:0;z-index:9000;
+  background:linear-gradient(135deg,#eef3ff 0%,#fdf2f8 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px 24px;
+}
+#login-screen.hidden{display:none}
+.login-logo{font-size:42px;margin-bottom:8px}
+.login-title{font-size:26px;font-weight:900;color:#00aeef;letter-spacing:.02em;margin-bottom:4px;
+  -webkit-text-stroke:.5px rgba(0,0,0,.2);
+  text-shadow:-1px -1px 0 rgba(0,0,0,.2),1px -1px 0 rgba(0,0,0,.2),-1px 1px 0 rgba(0,0,0,.2),1px 1px 0 rgba(0,0,0,.2);}
+.login-sub{font-size:13px;color:#888;margin-bottom:40px}
+.login-card{background:white;border-radius:20px;padding:32px 28px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.1);text-align:center}
+.login-card-title{font-size:16px;font-weight:600;color:#111;margin-bottom:6px}
+.login-card-desc{font-size:13px;color:#888;line-height:1.6;margin-bottom:24px}
+.login-divider{height:1px;background:#f0f0f0;margin:20px 0}
+.login-note{font-size:11px;color:#bbb;line-height:1.6}
+.login-error{background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 16px;font-size:13px;color:#dc2626;margin-top:16px;display:none}
+.login-error.show{display:block}
+#login-loading{display:none;flex-direction:column;align-items:center;gap:12px;margin-top:20px}
+#login-loading.show{display:flex}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.6}
 
@@ -64,6 +87,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   /* 名刺整理くん スタイル: 丸ゴシック風 太字 スカイブルー */
   color:#00aeef;
   font-size:19px;font-weight:900;letter-spacing:.02em;
+  text-shadow:-1px -1px 0 rgba(0,0,0,.25),1px -1px 0 rgba(0,0,0,.25),-1px 1px 0 rgba(0,0,0,.25),1px 1px 0 rgba(0,0,0,.25);
   /* アップロード画像の太丸ゴシック感を近似 */
   -webkit-text-stroke:.5px rgba(0,0,0,.2);
 }
@@ -445,7 +469,29 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 </style>
 </head>
 <body>
-<div id="app">
+<!-- ══ LOGIN SCREEN ══ -->
+<div id="login-screen">
+  <div class="login-logo">🗂</div>
+  <div class="login-title">名刺整理くん</div>
+  <div class="login-sub">MiKS & Linnas 名刺管理</div>
+  <div class="login-card">
+    <div class="login-card-title">ログインしてください</div>
+    <div class="login-card-desc">登録済みのGoogleアカウントでログインすると利用できます</div>
+    <!-- Google One Tap ボタン -->
+    <div id="g-signin-btn" style="display:flex;justify-content:center"></div>
+    <div id="login-loading">
+      <div style="width:20px;height:20px;border:2px solid #e0e0e0;border-top-color:#1a56db;border-radius:50%;animation:sp .8s linear infinite"></div>
+      <span style="font-size:13px;color:#888">認証中...</span>
+    </div>
+    <div class="login-error" id="login-error">
+      このアカウントはメンバー登録されていません。<br>管理者に追加を依頼してください。
+    </div>
+    <div class="login-divider"></div>
+    <div class="login-note">ログイン情報はこのデバイスに保存されます。<br>共有端末では使用後にログアウトしてください。</div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
 
   <!-- TOP BAR -->
   <div id="topbar">
@@ -453,6 +499,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="search-wrap" id="search-wrap">
       <span class="search-ico">🔍</span>
       <input type="search" id="q" placeholder="名前・会社・担当者で検索…">
+    </div>
+    <div id="topbar-user" style="display:none;align-items:center;gap:6px;flex-shrink:0">
+      <img id="topbar-avatar" src="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid #e0e0e0" alt="">
+      <div onclick="confirmLogout()" style="font-size:11px;color:#aaa;cursor:pointer;padding:4px">ログアウト</div>
     </div>
   </div>
 
@@ -876,7 +926,8 @@ let members=[],editMId=null,avData=null,myAvData=null;
 let isAdmin=false;
 let csvRows=[],csvHeaders=[],csvMapping={};
 
-const LS={g:k=>localStorage.getItem(k)||'',s:(k,v)=>localStorage.setItem(k,v)};
+const DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbwUXXxnKKVuXiLTJH0-O0lP7j8shTV5rT4Ag0uJcEPj6Xp8lCCHPwmQzfc_VW9MYbBW/exec';
+const LS={g:k=>localStorage.getItem(k)||(k==='gasUrl'?DEFAULT_GAS_URL:''),s:(k,v)=>localStorage.setItem(k,v)};
 const X=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 // ════════ TABS ════════
@@ -1961,6 +2012,175 @@ function saveMyPage(){
   toast('プロフィールを保存しました ✓','ok');
 }
 
+// ════════ GOOGLE AUTH ════════
+const GOOGLE_CLIENT_ID = ''; // ← Google Cloud ConsoleのクライアントIDを入れる（任意）
+
+let currentUser = null;
+
+function initGoogleAuth() {
+  // セッションに保存済みのユーザーがいれば即ログイン
+  const saved = sessionStorage.getItem('meishi_user');
+  if (saved) {
+    try {
+      const user = JSON.parse(saved);
+      currentUser = user;
+      onLoginSuccess(user, false);
+      return;
+    } catch(e) {}
+  }
+
+  // GASからメンバーリストを取得してゲストアクセスが可能か確認
+  // Google Client IDがなければ簡易メール入力モードにフォールバック
+  if (!GOOGLE_CLIENT_ID) {
+    showEmailFallback();
+    return;
+  }
+
+  // Google One Tap / Sign In with Google
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredential,
+    auto_select: true,
+  });
+  google.accounts.id.renderButton(
+    document.getElementById('g-signin-btn'),
+    { theme: 'outline', size: 'large', text: 'signin_with', locale: 'ja', width: 280 }
+  );
+  google.accounts.id.prompt();
+}
+
+async function handleGoogleCredential(response) {
+  document.getElementById('login-loading').classList.add('show');
+  document.getElementById('g-signin-btn').style.display = 'none';
+
+  try {
+    // JWTをデコードしてメールアドレスを取得
+    const payload = JSON.parse(atob(response.credential.split('.')[1]));
+    const email = payload.email;
+    const name = payload.name;
+    const picture = payload.picture;
+
+    await verifyAndLogin({ email, name, picture });
+  } catch(e) {
+    showLoginError();
+  }
+}
+
+// Google Client IDなしの簡易メール入力フォールバック
+function showEmailFallback() {
+  const card = document.querySelector('.login-card');
+  document.getElementById('g-signin-btn').innerHTML = `
+    <div style="width:100%">
+      <input type="email" id="login-email-input"
+        placeholder="Googleアカウントのメールアドレス"
+        style="width:100%;padding:11px 14px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;margin-bottom:10px;font-family:inherit"
+        onkeydown="if(event.key==='Enter')loginWithEmail()">
+      <button onclick="loginWithEmail()"
+        style="width:100%;padding:12px;background:#1a56db;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+        ログイン
+      </button>
+    </div>`;
+}
+
+async function loginWithEmail() {
+  const email = document.getElementById('login-email-input')?.value.trim().toLowerCase();
+  if (!email) return;
+  document.getElementById('login-loading').classList.add('show');
+  document.getElementById('g-signin-btn').style.display = 'none';
+  await verifyAndLogin({ email, name: email.split('@')[0], picture: '' });
+}
+
+async function verifyAndLogin({ email, name, picture }) {
+  try {
+    // GASでメンバー照合
+    const gasUrl = LS.g('gasUrl');
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'verifyAdmin', email })  // verifyAdminはメンバー全体をチェック
+    });
+    const data = await res.json();
+
+    // GASのverifyMemberを呼ぶ（全メンバー照合）
+    const membersRes = await fetch(gasUrl + '?action=getMembers');
+    const membersData = await membersRes.json();
+    const members = membersData.members || [];
+    const matched = members.find(m =>
+      (m.gEmail||'').toLowerCase().trim() === email.toLowerCase().trim() ||
+      (m.email||'').toLowerCase().trim() === email.toLowerCase().trim()
+    );
+
+    if (matched || data.isAdmin) {
+      const user = { email, name: matched?.name || name, picture, org: matched?.org || 'miks', role: matched?.role || 'member' };
+      currentUser = user;
+      sessionStorage.setItem('meishi_user', JSON.stringify(user));
+      onLoginSuccess(user, true);
+    } else {
+      showLoginError();
+    }
+  } catch(e) {
+    // GAS接続失敗時はローカルキャッシュで照合
+    const cached = LS.g('members');
+    if (cached) {
+      const members = JSON.parse(cached);
+      const matched = members.find(m =>
+        (m.gEmail||'').toLowerCase() === email.toLowerCase() ||
+        (m.email||'').toLowerCase() === email.toLowerCase()
+      );
+      if (matched) {
+        const user = { email, name: matched.name || name, picture, org: matched.org, role: matched.role };
+        currentUser = user;
+        sessionStorage.setItem('meishi_user', JSON.stringify(user));
+        onLoginSuccess(user, true);
+        return;
+      }
+    }
+    showLoginError();
+  }
+}
+
+function onLoginSuccess(user, isNew) {
+  // ログイン画面を隠してアプリを表示
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').style.display = 'flex';
+
+  // トップバーにユーザー情報を表示
+  const topbarUser = document.getElementById('topbar-user');
+  const topbarAvatar = document.getElementById('topbar-avatar');
+  if (topbarUser) topbarUser.style.display = 'flex';
+  if (topbarAvatar && user.picture) topbarAvatar.src = user.picture;
+  else if (topbarAvatar) topbarAvatar.style.display = 'none';
+
+  // マイ設定に自動反映
+  if (isNew) {
+    if (!LS.g('myName') && user.name) LS.s('myName', user.name);
+    if (!LS.g('myOrg') && user.org) LS.s('myOrg', user.org);
+  }
+
+  // アプリデータを初期化（初回のみ）
+  if (isNew) initAppData();
+  toast(`ようこそ、${user.name}さん！`,'ok');
+}
+
+function showLoginError() {
+  document.getElementById('login-loading').classList.remove('show');
+  document.getElementById('g-signin-btn').style.display = 'flex';
+  document.getElementById('login-error').classList.add('show');
+}
+
+function confirmLogout() {
+  if (confirm('ログアウトしますか？')) {
+    sessionStorage.removeItem('meishi_user');
+    currentUser = null;
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('login-error').classList.remove('show');
+    document.getElementById('login-loading').classList.remove('show');
+    document.getElementById('g-signin-btn').style.display = 'flex';
+    // Google Client IDがなければメール入力フォームを再表示
+    if (!GOOGLE_CLIENT_ID) showEmailFallback();
+  }
+}
+
 // ════════ INIT ════════
 document.getElementById('search-wrap').style.display='';
 document.getElementById('fab').style.display='';
@@ -1980,21 +2200,23 @@ document.getElementById('fab').style.display='';
   if(logoEl) logoEl.textContent=title;
   document.title=title;
 })();
-// クラウド同期してからカードを読み込む
-(async()=>{
+// クラウド同期してからカードを読み込む（認証後に呼ばれる）
+async function initAppData() {
   await syncFromCloud();
   loadCards();
   updateOcrEngineStatus();
-})();
+}
 initSwitches();
 toggleAdmField();
 
-setTimeout(()=>{
-  if(!LS.g('gasUrl')&&!LS.g('hintShown')){
-    toast('⚙ 設定タブからGASのURLを入力してください');
-    LS.s('hintShown','1');
-  }
-},1500);
+// Google認証を初期化
+if (GOOGLE_CLIENT_ID) {
+  // Google GSI読み込み待ち
+  window.onload = () => initGoogleAuth();
+} else {
+  // Client IDなし → メール入力フォールバック
+  initGoogleAuth();
+}
 </script>
 </body>
 </html>
