@@ -261,18 +261,20 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .d-side-btn:not(.active){background:rgba(0,0,0,.45);color:rgba(255,255,255,.8)}
 
 #card-grid{
-  flex:1;overflow-y:auto;padding:12px 16px 8px;
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(288px,1fr));
-  gap:10px;align-content:start;
+  flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 16px 8px;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));
+  gap:10px;align-content:start;box-sizing:border-box;
 }
 #card-grid::-webkit-scrollbar{width:3px}
 #card-grid::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 
 .mc{
   background:var(--card-bg);border:1px solid var(--border);
-  border-radius:var(--r-lg);padding:14px 16px 12px;
+  border-radius:var(--r-lg);padding:12px 14px 10px;
   cursor:pointer;transition:box-shadow .15s,border-color .15s;
   animation:fu .22s ease both;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;min-width:0;
 }
 .mc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px}
 .mc.org-miks::before{background:var(--miks)}
@@ -280,22 +282,31 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .mc:hover{box-shadow:var(--sh-md);border-color:var(--border2)}
 @keyframes fu{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 
-.mc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
-.mc-org{font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;font-family:var(--mono)}
+.mc-co{font-size:12px;font-weight:500;color:var(--text);margin-bottom:1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-dept{font-size:11px;color:var(--text3);margin-bottom:6px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-name{font-size:18px;font-weight:400;letter-spacing:-.01em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-role{font-size:11px;color:var(--text2);margin-bottom:8px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-info{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.mc-row{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc-ico{font-size:11px;color:var(--text3);width:14px;text-align:center;flex-shrink:0}
+.mc-foot{display:flex;align-items:center;justify-content:space-between;
+  padding-top:7px;border-top:1px solid var(--border);margin-top:auto}
+.ow-chip{font-size:10px;color:var(--text2);background:var(--bg2);border:1px solid var(--border);
+  border-radius:20px;padding:2px 7px;display:flex;align-items:center;gap:3px;
+  white-space:nowrap;overflow:hidden;max-width:120px}
+.mc-org{font-size:10px;font-weight:500;padding:2px 7px;border-radius:20px;
+  font-family:var(--mono);flex-shrink:0}
 .mc-org.miks{background:var(--miks-light);color:var(--miks)}
 .mc-org.linnas{background:var(--linnas-light);color:var(--linnas)}
-.mc-date{font-size:10px;color:var(--text3);font-family:var(--mono)}
-.mc-co{font-size:13px;font-weight:500;margin-bottom:1px}
-.mc-dept{font-size:11px;color:var(--text3);margin-bottom:7px}
-.mc-name{font-size:19px;font-weight:300;letter-spacing:-.01em}
-.mc-role{font-size:11px;color:var(--text2);margin-bottom:8px}
-.mc-info{display:flex;flex-direction:column;gap:3px;margin-bottom:10px}
-.mc-row{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px}
-.mc-ico{font-size:11px;color:var(--text3);width:14px;text-align:center}
-.mc-foot{display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border)}
-.ow-chip{font-size:10px;color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:2px 8px;display:flex;align-items:center;gap:3px}
 .qb-wrap{display:flex;gap:4px}
-.qb{width:26px;height:26px;border-radius:50%;background:var(--bg2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;transition:background .12s;text-decoration:none;color:inherit}
+.qb{width:26px;height:26px;border-radius:50%;background:var(--bg2);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:12px;
+  cursor:pointer;transition:background .12s;text-decoration:none;color:inherit;flex-shrink:0}
 .qb:hover{background:var(--bg3);border-color:var(--border2)}
 
 .empty-state{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;padding:60px 0;gap:10px;text-align:center}
@@ -526,8 +537,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #toast.ok{background:#166534}
 #toast.err{background:#991b1b}
 
-@media(max-width:480px){
-  #card-grid{grid-template-columns:1fr}
+@media(max-width:600px){
+  #card-grid{grid-template-columns:1fr!important}
   .fg,.mf-grid{grid-template-columns:1fr}
   .d-acts{grid-template-columns:repeat(2,1fr)}
   .map-grid{grid-template-columns:1fr auto 1fr}
@@ -912,7 +923,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
         <div class="fg"><div class="field"><label>氏名 *</label><input id="f-name" type="text" placeholder="山田 太郎"></div><div class="field"><label>役職</label><input id="f-role" type="text" placeholder="部長"></div></div>
         <div class="fg full" style="margin-top:8px"><div class="field"><label>メール</label><input id="f-email" type="email" placeholder="taro@example.com"></div></div>
         <div class="fg" style="margin-top:8px"><div class="field"><label>電話番号</label><input id="f-tel" type="tel" placeholder="03-xxxx-xxxx"></div><div class="field"><label>携帯番号</label><input id="f-mobile" type="tel" placeholder="090-xxxx-xxxx"></div></div>
-        <div class="fg full" style="margin-top:8px"><div class="field"><label>住所</label><input id="f-addr" type="text" placeholder="東京都…"></div></div>
+        <div class="fg" style="margin-top:8px">
+          <div class="field"><label>郵便番号</label><input id="f-zip" type="text" placeholder="920-0001" style="font-family:var(--mono)"></div>
+          <div class="field"></div>
+        </div>
+        <div class="fg full" style="margin-top:6px"><div class="field"><label>住所</label><input id="f-addr" type="text" placeholder="石川県金沢市…"></div></div>
         <div class="fg full" style="margin-top:8px"><div class="field"><label>ウェブサイト</label><input id="f-url" type="url" placeholder="https://"></div></div>
       </div>
       <div class="fsec"><div class="fsec-t">管理情報</div>
@@ -1129,23 +1144,32 @@ function renderCards(){
   if(!d.length){g.innerHTML='<div class="empty-state"><div class="empty-ico">📭</div><div class="empty-txt">該当する名刺がありません</div></div>';return}
   const use2col=LS.g('pref-2col')!=='0';
   g.style.gridTemplateColumns=use2col?'repeat(auto-fill,minmax(288px,1fr))':'1fr';
-  g.innerHTML=d.map((c,i)=>`
+  g.innerHTML=d.map((c,i)=>{
+    // 日付: exchangedAt（名刺交換日）優先、なければ createdAt
+    const dispDate = fmtDate(c.exchangedAt||c.createdAt||'');
+    return `
     <div class="mc org-${c.org}" onclick="openDetail('${c.id}')" style="animation-delay:${Math.min(i*.03,.25)}s">
-      <div class="mc-top"><div class="mc-org ${c.org}">${c.org==='miks'?'MiKS':'Linnas'}</div><div class="mc-date">${c.createdAt}</div></div>
-      <div class="mc-co">${X(c.company)}</div><div class="mc-dept">${X(c.dept||'')}</div>
-      <div class="mc-name">${X(c.name)}</div><div class="mc-role">${X(c.role||'')}</div>
+      <div class="mc-co">${X(c.company||'（会社名なし）')}</div>
+      <div class="mc-dept">${X(c.dept||'')}</div>
+      <div class="mc-name">${X(c.name||'（氏名なし）')}</div>
+      <div class="mc-role">${X(c.role||'')}</div>
       <div class="mc-info">
         ${c.tel?`<div class="mc-row"><span class="mc-ico">📞</span>${X(c.tel)}</div>`:''}
-        ${c.addr?`<div class="mc-row"><span class="mc-ico">📍</span>${X(c.addr)}</div>`:''}
+        ${c.addr?`<div class="mc-row"><span class="mc-ico">📍</span>${X(c.addr.replace(/^〒\S+\s*/,''))}</div>`:''}
       </div>
       <div class="mc-foot">
-        <div class="ow-chip">👤 ${X(c.owner||'—')}</div>
-        <div class="qb-wrap">
+        <div style="display:flex;align-items:center;gap:5px;min-width:0">
+          <div class="ow-chip">👤 ${X(c.owner||'—')}</div>
+          ${dispDate?`<span style="font-size:10px;color:var(--text3);font-family:var(--mono);flex-shrink:0">${dispDate}</span>`:''}
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
           ${c.tel?`<a class="qb" href="tel:${c.tel}" onclick="event.stopPropagation()">📞</a>`:''}
           ${c.email?`<a class="qb" href="mailto:${c.email}" onclick="event.stopPropagation()">✉️</a>`:''}
+          <div class="mc-org ${c.org}">${c.org==='miks'?'MiKS':'Linnas'}</div>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 
@@ -1258,6 +1282,27 @@ document.getElementById('card-list-view').addEventListener('scroll', function(){
   }
 });
 
+
+// ════════ 日付ユーティリティ ════════
+function fmtDate(s) {
+  if (!s) return '';
+  // すでに YYYY-MM-DD 形式
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Eightの YYYY/MM/DD 形式
+  if (/^\d{4}\/\d{2}\/\d{2}$/.test(s)) return s.replace(/\//g,'-');
+  // Date オブジェクトで解析
+  try {
+    const d = new Date(s);
+    if (!isNaN(d)) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${day}`;
+    }
+  } catch(e) {}
+  return s;
+}
+
 function buildOwChips(){
   const owners=[...new Set(allCards.map(c=>c.owner).filter(Boolean))].sort();
   document.getElementById('ow-chips').innerHTML=owners.map(o=>`<div class="chip" data-f="${X(o)}" onclick="setF('${X(o)}',this)">${X(o)}</div>`).join('');
@@ -1298,13 +1343,31 @@ function openDetail(id){
     if(ph) ph.classList.add('show');
     switcher.classList.remove('show');
   }
-  const rows=[[c.email,'✉️',`<a href="mailto:${c.email}">${X(c.email)}</a>`],[c.tel,'📞',`<a href="tel:${c.tel}">${X(c.tel)}</a>`],[c.mobile,'📱',`<a href="tel:${c.mobile}">${X(c.mobile)}</a>`],[c.addr,'📍',X(c.addr)],[c.url,'🌐',`<a href="${c.url}" target="_blank">${X(c.url)}</a>`],[c.memo,'📝',X(c.memo)]].filter(([v])=>v);
+  // 住所から郵便番号を分離して表示
+  const addrFull = c.addr||'';
+  const zipM = addrFull.match(/^(〒\S+)\s*(.*)/);
+  const zipDisp = zipM ? zipM[1] : '';
+  const addrDisp = zipM ? zipM[2] : addrFull;
+  const rows=[
+    c.email&&['✉️',`<a href="mailto:${c.email}">${X(c.email)}</a>`],
+    c.tel&&['📞',`<a href="tel:${c.tel}">${X(c.tel)}</a>`],
+    c.mobile&&['📱',`<a href="tel:${c.mobile}">${X(c.mobile)}</a>`],
+    zipDisp&&['📮',X(zipDisp)],
+    addrDisp&&['📍',X(addrDisp)],
+    c.url&&['🌐',`<a href="${c.url}" target="_blank">${X(c.url)}</a>`],
+    c.memo&&['📝',X(c.memo)],
+  ].filter(Boolean);
   document.getElementById('d-rows').innerHTML=rows.map(([,ico,val])=>`<div class="d-row"><div class="d-ri">${ico}</div><div class="d-rv">${val}</div></div>`).join('');
   document.getElementById('da-t').onclick=()=>c.tel&&(location.href='tel:'+c.tel);
   document.getElementById('da-m').onclick=()=>c.email&&(location.href='mailto:'+c.email);
   document.getElementById('da-map').onclick=()=>c.addr&&window.open('https://maps.google.com/?q='+encodeURIComponent(c.addr));
   document.getElementById('da-u').onclick=()=>c.url&&window.open(c.url);
-  document.getElementById('d-meta').innerHTML=`<div class="d-mr"><span>組織</span><span>${c.org==='miks'?'MiKS':'Linnas'}</span></div><div class="d-mr"><span>受取担当者</span><span>${c.owner||'—'}</span></div>${c.exchangedAt?`<div class="d-mr"><span>名刺交換日</span><span>${c.exchangedAt}</span></div>`:''}<div class="d-mr"><span>登録日</span><span>${c.createdAt}</span></div>`;
+  document.getElementById('d-meta').innerHTML=`
+    <div class="d-mr"><span>組織</span><span>${c.org==='miks'?'MiKS':'Linnas'}</span></div>
+    <div class="d-mr"><span>受取担当者</span><span>${c.owner||'—'}</span></div>
+    ${c.exchangedAt?`<div class="d-mr"><span>名刺交換日</span><span>${fmtDate(c.exchangedAt)}</span></div>`:''}
+    <div class="d-mr"><span>登録日</span><span>${fmtDate(c.createdAt)}</span></div>
+  `;
   openM('detail-modal');
 }
 
@@ -1329,7 +1392,16 @@ function closeImgZoom(){
 function editCard(){
   const c=allCards.find(a=>a.id===curDetailId);if(!c)return;
   closeM('detail-modal');isEdit=true;captImg=c.imageUrl||null;
-  ['company','dept','name','role','email','tel','mobile','addr','url','memo','exchangedAt'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value=c[k]||''});
+  ['company','dept','name','role','email','tel','mobile','url','memo','exchangedAt'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value=c[k]||''});
+  // 住所を郵便番号と住所に分解
+  const addrFull = c.addr||'';
+  const zipMatch = addrFull.match(/^〒?(\d{3}-?\d{4})\s*(.*)/);
+  if(zipMatch){
+    const zEl=document.getElementById('f-zip'); if(zEl) zEl.value=zipMatch[1];
+    const aEl=document.getElementById('f-addr'); if(aEl) aEl.value=zipMatch[2];
+  } else {
+    const aEl=document.getElementById('f-addr'); if(aEl) aEl.value=addrFull;
+  }
   captImgBack = c.imageData2 || null;
   if(captImgBack){const ab=document.getElementById('cap-area-back');if(ab){ab.innerHTML='';const img=document.createElement('img');img.src=captImgBack;img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;';ab.appendChild(img);}}
   document.getElementById('f-org').value=c.org||'miks';
@@ -1663,7 +1735,11 @@ async function saveCard(){
   const name=document.getElementById('f-name').value.trim();
   if(!company||!name){toast('会社名と氏名は必須です','err');return}
   const btn=document.getElementById('save-btn');btn.textContent='保存中…';btn.classList.add('dis');
-  const card={id:isEdit&&curDetailId?curDetailId:Date.now().toString(),company,dept:document.getElementById('f-dept').value.trim(),name,role:document.getElementById('f-role').value.trim(),email:document.getElementById('f-email').value.trim(),tel:document.getElementById('f-tel').value.trim(),mobile:document.getElementById('f-mobile').value.trim(),addr:document.getElementById('f-addr').value.trim(),url:document.getElementById('f-url').value.trim(),memo:document.getElementById('f-memo').value.trim(),org:document.getElementById('f-org').value,owner:document.getElementById('f-owner').value.trim(),exchangedAt:document.getElementById('f-exchangedAt')?.value||'',imageData:captImg,imageData2:captImgBack||'',createdAt:new Date().toISOString().slice(0,10)};
+  const card={id:isEdit&&curDetailId?curDetailId:Date.now().toString(),company,dept:document.getElementById('f-dept').value.trim(),name,role:document.getElementById('f-role').value.trim(),email:document.getElementById('f-email').value.trim(),tel:document.getElementById('f-tel').value.trim(),mobile:document.getElementById('f-mobile').value.trim(),addr:(()=>{
+    const zip=(document.getElementById('f-zip')?.value.trim()||'');
+    const addr=(document.getElementById('f-addr')?.value.trim()||'');
+    return zip?(zip.startsWith('〒')?zip:('〒'+zip))+(addr?' '+addr:''):addr;
+  })(),url:document.getElementById('f-url').value.trim(),memo:document.getElementById('f-memo').value.trim(),org:document.getElementById('f-org').value,owner:document.getElementById('f-owner').value.trim(),exchangedAt:document.getElementById('f-exchangedAt')?.value||'',imageData:captImg,imageData2:captImgBack||'',createdAt:fmtDate(new Date().toISOString())};
   const gasUrl=LS.g('gasUrl');
   if(gasUrl){try{await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:isEdit?'update':'add',card})})}catch{toast('GAS保存エラー（ローカルのみ更新）','err')}}
   const idx=allCards.findIndex(c=>c.id===card.id);
@@ -1789,9 +1865,7 @@ async function doImport(){
       if(field==='zip'){ zipVal.zip=val; return; }
       if(field==='addr'){ zipVal.addr=val; return; }
       if(field==='exchangedAt'&&val){
-        // 日付フォーマット統一 YYYY-MM-DD
-        const d=new Date(val);
-        card.exchangedAt=isNaN(d)?val:d.toISOString().slice(0,10);
+        card.exchangedAt=fmtDate(val);
         return;
       }
       card[field]=val;
