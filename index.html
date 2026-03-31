@@ -262,9 +262,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 #card-grid{
   flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 16px 8px;
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));
-  gap:10px;align-content:start;box-sizing:border-box;
+  columns:280px;column-gap:10px;box-sizing:border-box;
+  display:block;
 }
 #card-grid::-webkit-scrollbar{width:3px}
 #card-grid::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
@@ -275,6 +274,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   cursor:pointer;transition:box-shadow .15s,border-color .15s;
   animation:fu .22s ease both;position:relative;overflow:hidden;
   display:flex;flex-direction:column;min-width:0;
+  break-inside:avoid;margin-bottom:10px;
 }
 .mc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px}
 .mc.org-miks::before{background:var(--miks)}
@@ -538,7 +538,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #toast.err{background:#991b1b}
 
 @media(max-width:600px){
-  #card-grid{grid-template-columns:1fr!important}
+  #card-grid{columns:1!important}
   .fg,.mf-grid{grid-template-columns:1fr}
   .d-acts{grid-template-columns:repeat(2,1fr)}
   .map-grid{grid-template-columns:1fr auto 1fr}
