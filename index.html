@@ -496,43 +496,54 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .fg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .fg.full{grid-template-columns:1fr}
 
-/* Detail */
-.d-img{
-  display:none;position:absolute;top:18px;right:20px;
-  width:80px;height:56px;border-radius:6px;overflow:hidden;
-  cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15);
-  border:1px solid var(--border2);z-index:5;
-}
+/* ── Detail Modal (Eight風) ── */
+.d-img{display:none}
 .d-img.show{display:block}
-.d-img img{width:100%;height:100%;object-fit:cover}
 .d-img-placeholder{display:none}
-.d-img-placeholder.show{display:none}
-.d-img-tap-hint{display:none}
-/* 拡大モーダル */
-.img-zoom-overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+/* 画像拡大オーバーレイ */
+.img-zoom-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
 .img-zoom-overlay.open{opacity:1;pointer-events:all}
 .img-zoom-overlay img{max-width:96vw;max-height:90dvh;object-fit:contain;border-radius:4px}
-.img-zoom-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer}
-.d-body{padding:18px 20px;position:relative}
-.d-co{font-size:12px;font-weight:500;color:var(--accent);margin-bottom:2px}
-.d-dept{font-size:11px;color:var(--text3);margin-bottom:9px}
-.d-name{font-size:26px;font-weight:300;letter-spacing:-.02em;margin-bottom:2px}
-.d-role{font-size:13px;color:var(--text2);margin-bottom:14px}
-.d-rows{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
-.d-row{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--bg2);border-radius:var(--r-sm)}
-.d-ri{font-size:13px;color:var(--text3);width:18px;text-align:center;flex-shrink:0;margin-top:1px}
-.d-rv{font-size:13px;color:var(--text);flex:1;word-break:break-all}
-.d-rv a{color:var(--accent);text-decoration:none}
-.d-acts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px}
-.d-act{display:flex;flex-direction:column;align-items:center;gap:4px;padding:11px 6px;background:var(--bg2);border-radius:var(--r-sm);border:1px solid var(--border);cursor:pointer;font-size:10px;font-family:var(--mono);color:var(--text2);transition:all .12s}
-.d-act:hover{background:var(--bg3);border-color:var(--border2);color:var(--text)}
-.d-act .dai{font-size:20px}
-.d-meta{border-top:1px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.img-zoom-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer}
+/* Eight風ヘッダー */
+.d-eight-header{padding:16px 20px 12px;border-bottom:1px solid var(--border)}
+.d-eight-name{font-size:24px;font-weight:600;color:var(--text);letter-spacing:-.01em;margin-bottom:2px}
+.d-eight-kana{font-size:12px;color:var(--text3);margin-bottom:8px;font-family:var(--mono)}
+.d-eight-actions{display:flex;gap:8px;align-items:center}
+.d-act-circle{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;border:1.5px solid var(--border2);background:var(--bg);transition:background .12s;flex-shrink:0}
+.d-act-circle:hover{background:var(--bg2)}
+.d-act-circle.accent{background:var(--accent);border-color:var(--accent);color:white}
+.d-act-map{flex:1;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid var(--border2);background:var(--bg);color:var(--text);transition:background .12s}
+.d-act-map:hover{background:var(--bg2)}
+/* 名刺画像エリア */
+.d-card-img-wrap{padding:16px 20px;cursor:pointer;position:relative}
+.d-card-img-wrap img{width:100%;border-radius:10px;display:block;box-shadow:0 2px 12px rgba(0,0,0,.12)}
+.d-card-img-wrap .d-img-switcher{position:absolute;bottom:24px;right:28px}
+.d-card-img-placeholder{margin:16px 20px;height:80px;background:var(--bg2);border:1px dashed var(--border2);border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text3);font-size:13px}
+/* 会社情報バー */
+.d-company-bar{padding:12px 20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg)}
+.d-co-name{font-size:15px;font-weight:600;color:var(--text)}
+/* 詳細情報リスト (Eight風) */
+.d-info-list{display:flex;flex-direction:column}
+.d-info-row{display:flex;align-items:center;gap:14px;padding:13px 20px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.d-info-row:hover{background:var(--bg2)}
+.d-info-row.no-action{cursor:default}
+.d-info-row.no-action:hover{background:transparent}
+.d-info-ico{font-size:18px;color:var(--text3);width:22px;text-align:center;flex-shrink:0}
+.d-info-val{font-size:14px;color:var(--accent);flex:1;word-break:break-all}
+.d-info-val.plain{color:var(--text)}
+.d-info-tag{font-size:10px;border:1px solid var(--border2);border-radius:4px;padding:1px 5px;color:var(--text3);font-family:var(--mono);flex-shrink:0}
+/* メタ情報 */
+.d-meta{padding:12px 20px;display:flex;flex-direction:column;gap:4px}
 .d-mr{display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono)}
 .d-mr span:first-child{color:var(--text3)}
 .d-mr span:last-child{color:var(--text2)}
-.d-edit{width:100%;padding:11px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:13px;cursor:pointer;font-family:var(--font);transition:background .12s}
-.d-edit:hover{background:var(--bg3)}
+/* 編集ボタン */
+.d-edit{width:calc(100% - 40px);margin:8px 20px 20px;padding:12px;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r);color:var(--accent);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font);transition:background .12s;display:block;text-align:center}
+.d-edit:hover{background:var(--bg2)}
+/* シートのmax-height調整 */
+#detail-modal .sheet{max-height:96dvh}
+.d-body{padding:0}
 
 /* Member modal */
 .av-pick{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:16px}
@@ -1003,31 +1014,49 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 <div class="overlay" id="detail-modal">
   <div class="sheet">
     <div class="sheet-handle" onclick="closeM('detail-modal')"></div>
-    <div class="d-img" id="d-img" onclick="openImgZoom()">
+    <!-- Eight風ヘッダー: 名前 + アクションボタン -->
+    <div class="d-eight-header">
+      <div id="d-kana" class="d-eight-kana"></div>
+      <div id="d-name" class="d-eight-name"></div>
+      <div id="d-role-sub" style="font-size:12px;color:var(--text3);margin-bottom:10px"></div>
+      <div class="d-eight-actions">
+        <div class="d-act-circle" id="da-t" title="電話">📞</div>
+        <div class="d-act-circle" id="da-m" title="メール">✉️</div>
+        <div class="d-act-map" id="da-map">🗺 地図で見る</div>
+        <div class="d-act-circle" id="da-u" title="URL">🌐</div>
+      </div>
+    </div>
+    <!-- 名刺画像エリア -->
+    <div class="d-card-img-wrap" id="d-img-wrap-eight" onclick="openImgZoom()" style="display:none">
       <img id="d-img-el" src="" alt="">
-      <div class="d-img-tap-hint">タップで拡大</div>
       <div class="d-img-switcher" id="d-img-switcher">
         <button class="d-side-btn active" onclick="event.stopPropagation();switchImgSide(0,this)">表</button>
         <button class="d-side-btn" onclick="event.stopPropagation();switchImgSide(1,this)">裏</button>
       </div>
     </div>
-    <div class="d-img-placeholder" id="d-img-placeholder">
-      <span style="font-size:28px;opacity:.3">📷</span>
-      <span style="font-size:11px;color:var(--text3)">名刺画像なし</span>
+    <div class="d-card-img-placeholder" id="d-img-placeholder" style="display:none">
+      <span>📷</span><span>名刺画像なし</span>
     </div>
+    <!-- 会社情報バー -->
+    <div class="d-company-bar">
+      <div>
+        <div id="d-co" class="d-co-name"></div>
+        <div id="d-dept" style="font-size:12px;color:var(--text3)"></div>
+      </div>
+    </div>
+    <!-- 詳細情報リスト -->
+    <div class="d-info-list" id="d-rows"></div>
+    <!-- メタ情報 -->
+    <div class="d-meta" id="d-meta"></div>
+    <!-- 編集ボタン -->
+    <button class="d-edit" onclick="editCard()">名刺情報を編集</button>
     <!-- 画像拡大オーバーレイ -->
     <div class="img-zoom-overlay" id="img-zoom" onclick="closeImgZoom()">
       <div class="img-zoom-close" onclick="closeImgZoom()">✕</div>
       <img id="img-zoom-el" src="" alt="">
     </div>
-    <div class="d-body">
-      <div id="d-co" class="d-co"></div><div id="d-dept" class="d-dept"></div>
-      <div id="d-name" class="d-name"></div><div id="d-role" class="d-role"></div>
-      <div class="d-rows" id="d-rows"></div>
-      <div class="d-acts"><div class="d-act" id="da-t"><div class="dai">📞</div>電話</div><div class="d-act" id="da-m"><div class="dai">✉️</div>メール</div><div class="d-act" id="da-map"><div class="dai">🗺</div>地図</div><div class="d-act" id="da-u"><div class="dai">🌐</div>URL</div></div>
-      <div class="d-meta" id="d-meta"></div>
-      <button class="d-edit" onclick="editCard()">✏️ 編集する</button>
-    </div>
+    <!-- 後方互換 -->
+    <div id="d-img" style="display:none"><img></div>
   </div>
 </div>
 
@@ -1469,57 +1498,77 @@ document.getElementById('q').addEventListener('input',renderCards);
 
 // ════════ DETAIL ════════
 function openDetail(id){
-  const c=allCards.find(x=>x.id===id);if(!c)return;
+  const card=allCards.find(x=>x.id===id);if(!card)return;
+  const c=card;
   curDetailId=id;
-  document.getElementById('d-co').textContent=c.company;
-  document.getElementById('d-dept').textContent=c.dept||'';
-  document.getElementById('d-name').textContent=c.name;
-  document.getElementById('d-role').textContent=c.role||'';
-  const iw=document.getElementById('d-img');
-  const ph=document.getElementById('d-img-placeholder');
-  const switcher=document.getElementById('d-img-switcher');
-  // 表面画像
-  const frontSrc = c.imageUrl || c.imageData || '';
-  // 裏面画像
-  const backSrc = c.imageUrl2 || c.imageData2 || '';
-  // 現在表示中の画像インデックスをリセット
-  window._detailImgSides = [frontSrc, backSrc].filter(Boolean);
+  // ── ヘッダー ──
+  document.getElementById('d-kana').textContent = c.kana||c.nameKana||'';
+  document.getElementById('d-name').textContent = c.name||'';
+  document.getElementById('d-role-sub').textContent = c.role||'';
+  document.getElementById('d-co').textContent = c.company||'';
+  document.getElementById('d-dept').textContent = c.dept||'';
+
+  // ── アクションボタン ──
+  const dat = document.getElementById('da-t');
+  const dam = document.getElementById('da-m');
+  const damap = document.getElementById('da-map');
+  const dau = document.getElementById('da-u');
+  dat.onclick = ()=>c.tel&&(location.href='tel:'+c.tel);
+  dam.onclick = ()=>c.email&&(location.href='mailto:'+c.email);
+  damap.onclick = ()=>c.addr&&window.open('https://maps.google.com/?q='+encodeURIComponent(c.addr));
+  dau.onclick = ()=>c.url&&window.open(c.url);
+  // アクティブ/非アクティブ
+  dat.style.opacity = c.tel?'1':'0.35'; dat.style.pointerEvents = c.tel?'':'none';
+  dam.style.opacity = c.email?'1':'0.35'; dam.style.pointerEvents = c.email?'':'none';
+  damap.style.opacity = c.addr?'1':'0.35'; damap.style.pointerEvents = c.addr?'':'none';
+  dau.style.opacity = c.url?'1':'0.35'; dau.style.pointerEvents = c.url?'':'none';
+
+  // ── 名刺画像 ──
+  const frontSrc = c.imageUrl||c.imageData||'';
+  const backSrc = c.imageUrl2||c.imageData2||'';
+  window._detailImgSides = [frontSrc,backSrc].filter(Boolean);
+  const imgWrap = document.getElementById('d-img-wrap-eight');
+  const ph = document.getElementById('d-img-placeholder');
+  const switcher = document.getElementById('d-img-switcher');
   if(frontSrc){
-    document.getElementById('d-img-el').src=frontSrc;
-    document.getElementById('img-zoom-el').src=frontSrc;
-    iw.classList.add('show');
-    if(ph) ph.classList.remove('show');
-    // 裏面があれば切り替えボタンを表示
-    if(backSrc){
-      switcher.classList.add('show');
-      switcher.querySelectorAll('.d-side-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
-    } else {
-      switcher.classList.remove('show');
-    }
+    document.getElementById('d-img-el').src = frontSrc;
+    document.getElementById('img-zoom-el').src = frontSrc;
+    imgWrap.style.display='';
+    ph.style.display='none';
+    if(backSrc){ switcher.classList.add('show'); switcher.querySelectorAll('.d-side-btn').forEach((b,i)=>b.classList.toggle('active',i===0)); }
+    else switcher.classList.remove('show');
   } else {
-    iw.classList.remove('show');
-    if(ph) ph.classList.add('show');
-    switcher.classList.remove('show');
+    imgWrap.style.display='none';
+    ph.style.display='flex';
   }
-  // 住所から郵便番号を分離して表示
+
+  // ── 情報リスト (Eight風) ──
   const addrFull = c.addr||'';
   const zipM = addrFull.match(/^(〒\S+)\s*(.*)/);
-  const zipDisp = zipM ? zipM[1] : '';
-  const addrDisp = zipM ? zipM[2] : addrFull;
-  const rows=[
-    c.email&&['✉️',`<a href="mailto:${c.email}">${X(c.email)}</a>`],
-    c.tel&&['📞',`<a href="tel:${c.tel}">${X(c.tel)}</a>`],
-    c.mobile&&['📱',`<a href="tel:${c.mobile}">${X(c.mobile)}</a>`],
-    zipDisp&&['📮',X(zipDisp)],
-    addrDisp&&['📍',X(addrDisp)],
-    c.url&&['🌐',`<a href="${c.url}" target="_blank">${X(c.url)}</a>`],
-    c.memo&&['📝',X(c.memo)],
+  const zipDisp = zipM?zipM[1]:'';
+  const addrDisp = zipM?zipM[2]:addrFull;
+
+  const infoRows = [
+    c.tel   && {ico:'📞', val:c.tel,   href:'tel:'+c.tel,          tag:''},
+    c.mobile&& {ico:'📞', val:c.mobile,href:'tel:'+c.mobile,       tag:'携帯'},
+    c.email && {ico:'✉️', val:c.email, href:'mailto:'+c.email,     tag:''},
+    zipDisp && {ico:'📮', val:zipDisp, href:null,                   tag:''},
+    addrDisp&& {ico:'📍', val:addrDisp,href:'https://maps.google.com/?q='+encodeURIComponent(c.addr),tag:''},
+    c.memo  && {ico:'📝', val:c.memo,  href:null,                   tag:'', plain:true},
+    c.url   && {ico:'🌐', val:c.url,   href:c.url,                 tag:'', ext:true},
   ].filter(Boolean);
-  document.getElementById('d-rows').innerHTML=rows.map(([ico,val])=>`<div class="d-row"><div class="d-ri">${ico}</div><div class="d-rv">${val}</div></div>`).join('');
-  document.getElementById('da-t').onclick=()=>c.tel&&(location.href='tel:'+c.tel);
-  document.getElementById('da-m').onclick=()=>c.email&&(location.href='mailto:'+c.email);
-  document.getElementById('da-map').onclick=()=>c.addr&&window.open('https://maps.google.com/?q='+encodeURIComponent(c.addr));
-  document.getElementById('da-u').onclick=()=>c.url&&window.open(c.url);
+
+  document.getElementById('d-rows').innerHTML = infoRows.map(row => {
+    const clickable = row.href;
+    const valHtml = clickable
+      ? `<a class="d-info-val${row.plain?' plain':''}" href="${row.href}"${row.ext?' target="_blank"':''}>${X(row.val)}</a>`
+      : `<span class="d-info-val plain">${X(row.val)}</span>`;
+    return `<div class="d-info-row${clickable?'':' no-action'}">
+      <span class="d-info-ico">${row.ico}</span>
+      ${valHtml}
+      ${row.tag?`<span class="d-info-tag">${row.tag}</span>`:''}
+    </div>`;
+  }).join('');
   document.getElementById('d-meta').innerHTML=`
     <div class="d-mr"><span>組織</span><span>${c.org==='miks'?'MiKS':'Linnas'}</span></div>
     <div class="d-mr"><span>受取担当者</span><span>${c.owner||'—'}</span></div>
@@ -1527,6 +1576,8 @@ function openDetail(id){
     <div class="d-mr"><span>登録日</span><span>${fmtDate(c.createdAt)}</span></div>
   `;
   openM('detail-modal');
+  // 画像を正しい向きで読込（遅延でシート描画後に）
+  if(frontSrc){ setTimeout(()=>{ document.getElementById('d-img-el').src=frontSrc+'#t='+(Date.now()); },50); }
 }
 
 
@@ -1591,51 +1642,109 @@ function toS3(){setRStep(3);enableSaveBtn()}
 
 let captImgBack = null;
 
-function handleFileBack(e) {
-  const file = e.target.files[0]; if(!file) return;
-  const r = new FileReader();
-  r.onload = ev => {
-    captImgBack = ev.target.result;
-    const area = document.getElementById('cap-area-back');
-    area.innerHTML = '';
-    const img = document.createElement('img');
-    img.src = captImgBack;
-    img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;';
-    area.appendChild(img);
+// ════════ 画像処理: EXIF回転・圧縮・変換 ════════
+const MAX_PX = 1600; // 最大辺
+const JPEG_Q = 0.85;
+
+// EXIFのOrientationを読み取る
+function getExifOrientation(buffer) {
+  const view = new DataView(buffer);
+  if (view.getUint16(0) !== 0xFFD8) return 1;
+  let offset = 2;
+  while (offset < view.byteLength) {
+    const marker = view.getUint16(offset); offset += 2;
+    if (marker === 0xFFE1) {
+      if (view.getUint32(offset+2) !== 0x45786966) return 1;
+      const little = view.getUint16(offset+8) === 0x4949;
+      const ifdOffset = view.getUint32(offset+10+(little?0:0), little);
+      const tags = view.getUint16(offset+8+ifdOffset, little);
+      for (let i=0; i<tags; i++) {
+        const tagOffset = offset+8+ifdOffset+2+i*12;
+        if (view.getUint16(tagOffset, little) === 0x0112)
+          return view.getUint16(tagOffset+8, little);
+      }
+    }
+    offset += view.getUint16(offset) + 2;
+  }
+  return 1;
+}
+
+// Canvas で回転・リサイズしてJPEGに変換
+function processImageFile(dataUrl, arrayBuffer, callback) {
+  const orientation = arrayBuffer ? getExifOrientation(arrayBuffer) : 1;
+  const img = new Image();
+  img.onload = () => {
+    let w = img.naturalWidth, h = img.naturalHeight;
+    const rotated = orientation >= 5; // 90/270度回転
+    const scale = Math.min(1, MAX_PX / Math.max(w, h));
+    const dw = rotated ? Math.round(h*scale) : Math.round(w*scale);
+    const dh = rotated ? Math.round(w*scale) : Math.round(h*scale);
+    const cv = document.createElement('canvas');
+    cv.width = dw; cv.height = dh;
+    const ctx = cv.getContext('2d');
+    // EXIF回転を適用
+    const transforms = {
+      1:[1,0,0,1,0,0], 2:[-1,0,0,1,dw,0], 3:[-1,0,0,-1,dw,dh],
+      4:[1,0,0,-1,0,dh], 5:[0,1,1,0,0,0], 6:[0,1,-1,0,dh,0],
+      7:[0,-1,-1,0,dh,dw], 8:[0,-1,1,0,0,dw]
+    };
+    const t = transforms[orientation]||transforms[1];
+    ctx.transform(t[0],t[1],t[2],t[3],t[4]*scale,t[5]*scale);
+    ctx.drawImage(img,0,0,w*scale,h*scale);
+    callback(cv.toDataURL('image/jpeg', JPEG_Q));
   };
-  r.readAsDataURL(file);
-  e.target.value = '';
+  img.onerror = () => callback(dataUrl); // フォールバック
+  img.src = dataUrl;
+}
+
+function setImgPreview(dataUrl, areaId, isBack) {
+  if (isBack) { captImgBack = dataUrl; }
+  else { captImg = dataUrl; document.getElementById('next1').classList.remove('dis'); }
+  const area = document.getElementById(areaId);
+  if (!area) return;
+  area.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;';
+  area.appendChild(img);
+}
+
+function readAndProcess(file, areaId, isBack) {
+  // PDF: 1ページ目をCanvasに描画してJPEG化
+  if (file.type === 'application/pdf') {
+    toast('PDFは画像として取込みます…');
+    const url = URL.createObjectURL(file);
+    // pdf.jsが必要なため簡易メッセージのみ
+    toast('PDFは直接アップロードしてください（画像変換非対応）');
+    return;
+  }
+  const reader = new FileReader();
+  // arrayBufferでEXIF取得、dataUrlでプレビュー
+  let ab = null;
+  const abReader = new FileReader();
+  abReader.onload = ev => { ab = ev.target.result; };
+  abReader.readAsArrayBuffer(file);
+
+  reader.onload = ev => {
+    const dataUrl = ev.target.result;
+    // 少し待ってarrayBufferが揃ってから処理
+    setTimeout(() => processImageFile(dataUrl, ab, result => {
+      setImgPreview(result, areaId, isBack);
+    }), 100);
+  };
+  reader.readAsDataURL(file);
 }
 
 function handleFile(e){
   const file=e.target.files[0];if(!file)return;
-  // HEIF/HEICをJPEGに変換（Canvas経由）
-  function setPreview(dataUrl){
-    captImg=dataUrl;
-    const a=document.getElementById('cap-area');a.innerHTML='';
-    const img=document.createElement('img');img.src=dataUrl;
-    img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;';
-    a.appendChild(img);
-    document.getElementById('next1').classList.remove('dis');
-  }
-  const isHeif=/heif|heic/i.test(file.type)||/\.heic$/i.test(file.name);
-  const r=new FileReader();
-  r.onload=ev=>{
-    if(isHeif){
-      // Canvas経由でJPEGに変換
-      const img=new Image();
-      img.onload=()=>{
-        const cv=document.createElement('canvas');
-        cv.width=img.naturalWidth;cv.height=img.naturalHeight;
-        cv.getContext('2d').drawImage(img,0,0);
-        setPreview(cv.toDataURL('image/jpeg',0.92));
-      };
-      img.src=ev.target.result;
-    } else {
-      setPreview(ev.target.result);
-    }
-  };
-  r.readAsDataURL(file);e.target.value='';
+  readAndProcess(file,'cap-area',false);
+  e.target.value='';
+}
+
+function handleFileBack(e) {
+  const file=e.target.files[0];if(!file)return;
+  readAndProcess(file,'cap-area-back',true);
+  e.target.value='';
 }
 
 function enableSaveBtn(){
