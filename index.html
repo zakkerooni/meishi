@@ -354,9 +354,18 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .fg.full{grid-template-columns:1fr}
 
 /* Detail */
-.d-img{height:140px;overflow:hidden;display:none}
+.d-img{height:180px;overflow:hidden;display:none;position:relative;background:var(--bg2);cursor:pointer}
 .d-img.show{display:block}
-.d-img img{width:100%;height:100%;object-fit:cover}
+.d-img img{width:100%;height:100%;object-fit:contain;background:#111}
+.d-img-placeholder{height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:var(--bg2);border-bottom:1px solid var(--border)}
+.d-img-placeholder.show{display:flex}
+.d-img-placeholder{display:none}
+.d-img-tap-hint{position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.5);color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;pointer-events:none}
+/* 拡大モーダル */
+.img-zoom-overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.img-zoom-overlay.open{opacity:1;pointer-events:all}
+.img-zoom-overlay img{max-width:96vw;max-height:90dvh;object-fit:contain;border-radius:4px}
+.img-zoom-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer}
 .d-body{padding:18px 20px}
 .d-co{font-size:12px;font-weight:500;color:var(--accent);margin-bottom:2px}
 .d-dept{font-size:11px;color:var(--text3);margin-bottom:9px}
@@ -796,7 +805,19 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 <div class="overlay" id="detail-modal">
   <div class="sheet">
     <div class="sheet-handle" onclick="closeM('detail-modal')"></div>
-    <div class="d-img" id="d-img"><img id="d-img-el" src="" alt=""></div>
+    <div class="d-img" id="d-img" onclick="openImgZoom()">
+      <img id="d-img-el" src="" alt="">
+      <div class="d-img-tap-hint">タップで拡大</div>
+    </div>
+    <div class="d-img-placeholder" id="d-img-placeholder">
+      <span style="font-size:28px;opacity:.3">📷</span>
+      <span style="font-size:11px;color:var(--text3)">名刺画像なし</span>
+    </div>
+    <!-- 画像拡大オーバーレイ -->
+    <div class="img-zoom-overlay" id="img-zoom" onclick="closeImgZoom()">
+      <div class="img-zoom-close" onclick="closeImgZoom()">✕</div>
+      <img id="img-zoom-el" src="" alt="">
+    </div>
     <div class="d-body">
       <div id="d-co" class="d-co"></div><div id="d-dept" class="d-dept"></div>
       <div id="d-name" class="d-name"></div><div id="d-role" class="d-role"></div>
@@ -985,7 +1006,18 @@ function openDetail(id){
   document.getElementById('d-name').textContent=c.name;
   document.getElementById('d-role').textContent=c.role||'';
   const iw=document.getElementById('d-img');
-  if(c.imageUrl){document.getElementById('d-img-el').src=c.imageUrl;iw.classList.add('show')}else iw.classList.remove('show');
+  const ph=document.getElementById('d-img-placeholder');
+  // imageUrl (Drive) or imageData (base64 local) どちらでも表示
+  const imgSrc = c.imageUrl || c.imageData || '';
+  if(imgSrc){
+    document.getElementById('d-img-el').src=imgSrc;
+    document.getElementById('img-zoom-el').src=imgSrc;
+    iw.classList.add('show');
+    if(ph) ph.classList.remove('show');
+  } else {
+    iw.classList.remove('show');
+    if(ph) ph.classList.add('show');
+  }
   const rows=[[c.email,'✉️',`<a href="mailto:${c.email}">${X(c.email)}</a>`],[c.tel,'📞',`<a href="tel:${c.tel}">${X(c.tel)}</a>`],[c.mobile,'📱',`<a href="tel:${c.mobile}">${X(c.mobile)}</a>`],[c.addr,'📍',X(c.addr)],[c.url,'🌐',`<a href="${c.url}" target="_blank">${X(c.url)}</a>`],[c.memo,'📝',X(c.memo)]].filter(([v])=>v);
   document.getElementById('d-rows').innerHTML=rows.map(([,ico,val])=>`<div class="d-row"><div class="d-ri">${ico}</div><div class="d-rv">${val}</div></div>`).join('');
   document.getElementById('da-t').onclick=()=>c.tel&&(location.href='tel:'+c.tel);
@@ -994,6 +1026,15 @@ function openDetail(id){
   document.getElementById('da-u').onclick=()=>c.url&&window.open(c.url);
   document.getElementById('d-meta').innerHTML=`<div class="d-mr"><span>組織</span><span>${c.org==='miks'?'MiKS':'Linnas'}</span></div><div class="d-mr"><span>受取担当者</span><span>${c.owner||'—'}</span></div><div class="d-mr"><span>登録日</span><span>${c.createdAt}</span></div>`;
   openM('detail-modal');
+}
+
+function openImgZoom(){
+  const src=document.getElementById('d-img-el').src;
+  if(!src)return;
+  document.getElementById('img-zoom').classList.add('open');
+}
+function closeImgZoom(){
+  document.getElementById('img-zoom').classList.remove('open');
 }
 
 function editCard(){
@@ -1316,7 +1357,12 @@ async function saveCard(){
   const gasUrl=LS.g('gasUrl');
   if(gasUrl){try{await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:isEdit?'update':'add',card})})}catch{toast('GAS保存エラー（ローカルのみ更新）','err')}}
   const idx=allCards.findIndex(c=>c.id===card.id);
-  const saved={...card,imageUrl:typeof captImg==='string'&&captImg.startsWith('data:')?captImg:(allCards[idx]?.imageUrl||'')};
+  // imageUrl = Drive URL（GAS経由）/ imageData = ローカルbase64（GAS未接続時）
+  const localImg = typeof captImg==='string'&&captImg.startsWith('data:') ? captImg : '';
+  const saved={...card,
+    imageUrl: allCards[idx]?.imageUrl || '',   // GASからのDrive URLは保持
+    imageData: localImg || allCards[idx]?.imageData || '',  // base64はローカルに保存
+  };
   if(idx>=0)allCards[idx]=saved;else allCards.unshift(saved);
   closeM('reg-modal');renderCards();buildOwChips();toast('保存しました ✓','ok');
   btn.textContent='💾 保存する';btn.classList.remove('dis');isEdit=false;
