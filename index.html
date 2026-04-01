@@ -40,9 +40,9 @@
   --ls-wide:0.05em;
   --nav-h:64px;
   /* テーマカスタマイズ（管理者設定で上書き可） */
-  --theme-accent:#1a56db;
-  --theme-accent-bg:#eef3ff;
-  --theme-accent2:#1345b5;
+  --theme-accent:#ff4f42;
+  --theme-accent-bg:#fff1f0;
+  --theme-accent2:#d93b2f;
   --theme-org1:#1a56db;
   --theme-org1-bg:#eef3ff;
   --theme-org1-light:#dce8ff;
@@ -364,8 +364,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .el-org-dot{
   width:8px;height:8px;border-radius:50%;flex-shrink:0;
 }
-.el-org-dot.miks{background:var(--miks)}
-.el-org-dot.linnas{background:var(--linnas)}
+.el-org-dot{background:var(--text3)} /* 色はJSで動的セット */
 
 .mc-co{font-size:12px;font-weight:500;color:var(--text);margin-bottom:1px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -692,30 +691,43 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 <!-- ══ LOGIN SCREEN ══ -->
 <div id="login-screen">
   <div class="login-logo" style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:32px">
-    <img id="app-icon-login" src="" alt="" style="width:80px;height:80px;border-radius:18px;object-fit:cover;box-shadow:0 4px 16px rgba(0,0,0,.15)">
+    <img id="app-icon-login" src="" alt="" style="width:72px;height:72px;border-radius:14px;object-fit:cover">
     <div style="font-family:'Yu Gothic Medium','游ゴシック Medium','游ゴシック体','YuGothic','Noto Sans JP',sans-serif;font-size:13px;color:var(--text2);letter-spacing:0.06em;font-weight:500">スーパー名刺整理くん</div>
   </div>
   <div class="login-card">
     <div class="login-card-title">ログインしてください</div>
     <div class="login-card-desc">登録済みのGoogleアカウントでログインすると利用できます</div>
 
-    <!-- メールアドレス入力フォーム（常時表示） -->
+    <!-- ログインフォーム（常時表示） -->
     <div id="g-signin-btn" style="display:flex;justify-content:center">
-      <div style="width:100%">
+      <div style="width:100%;display:flex;flex-direction:column;gap:10px">
         <input type="email" id="login-email-input"
           placeholder="Googleアカウントのメールアドレス"
           autocomplete="email"
-          style="width:100%;padding:11px 14px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;margin-bottom:10px;font-family:inherit;color:#111;background:#fff;box-sizing:border-box;-webkit-appearance:none"
-          onkeydown="if(event.key==='Enter')loginWithEmail()">
+          style="width:100%;padding:11px 14px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;font-family:inherit;color:#111;background:#fff;box-sizing:border-box;-webkit-appearance:none"
+          onkeydown="if(event.key==='Enter')document.getElementById('login-pw-input').focus()">
+        <div style="position:relative">
+          <input type="password" id="login-pw-input"
+            placeholder="パスワード"
+            autocomplete="current-password"
+            style="width:100%;padding:11px 44px 11px 14px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;font-family:inherit;color:#111;background:#fff;box-sizing:border-box;-webkit-appearance:none"
+            onkeydown="if(event.key==='Enter')loginWithEmail()">
+          <span onclick="togglePwVisible()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:#aaa">
+            <span class="ms sm" id="pw-eye-icon">visibility</span>
+          </span>
+        </div>
         <button onclick="loginWithEmail()"
-          style="width:100%;padding:12px;background:#1a56db;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+          style="width:100%;padding:12px;background:var(--accent,#ff4f42);color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
           ログイン
         </button>
+        <div id="login-pw-hint" style="font-size:11px;color:#bbb;text-align:center;display:none">
+          ※ パスワードは管理者にお問い合わせください
+        </div>
       </div>
     </div>
 
     <div id="login-loading">
-      <div style="width:20px;height:20px;border:2px solid #e0e0e0;border-top-color:#1a56db;border-radius:50%;animation:sp .8s linear infinite"></div>
+      <div style="width:20px;height:20px;border:2px solid #e0e0e0;border-top-color:#ff4f42;border-radius:50%;animation:sp .8s linear infinite"></div>
       <span style="font-size:13px;color:#888">認証中...</span>
     </div>
     <div class="login-error" id="login-error">
@@ -777,85 +789,92 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="page" id="page-guide">
       <div class="guide-hero">
         <h1>はじめての方へ</h1>
-        <p>名刺帳の使い方をかんたんに説明します</p>
+        <p>スーパー名刺整理くんの使い方をご説明します</p>
       </div>
       <div class="guide-steps">
+
         <div class="step-item">
           <div class="step-num">1</div>
           <div class="step-body">
-            <div class="step-title">＋ボタンをタップしよう</div>
-            <div class="step-desc">画面右下の青いボタンをタップすると名刺の登録が始まります。</div>
-            <svg width="200" height="90" viewBox="0 0 200 90" fill="none" style="display:block;margin:8px 0">
-              <rect x="10" y="20" width="120" height="50" rx="8" fill="#f8f8f6" stroke="#e8e7e0" stroke-width="1.5"/>
-              <rect x="20" y="32" width="60" height="8" rx="3" fill="#e8e7e0"/>
-              <rect x="20" y="46" width="40" height="6" rx="3" fill="#ebebе6"/>
-              <circle cx="160" cy="55" r="24" fill="#1a56db"/>
-              <line x1="160" y1="45" x2="160" y2="65" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="150" y1="55" x2="170" y2="55" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-              <path d="M100 55 Q120 55 130 55" stroke="#1a56db" stroke-width="1.5" stroke-dasharray="4 3" fill="none" stroke-linecap="round" marker-end="url(#a)"/>
-              <defs><marker id="a" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6" fill="none" stroke="#1a56db" stroke-width="1.2"/></marker></defs>
-            </svg>
+            <div class="step-title">名刺を追加する</div>
+            <div class="step-desc">画面下中央の <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:var(--accent);vertical-align:middle;text-align:center;line-height:20px"><span class="ms" style="font-size:12px;color:white">add</span></span> ボタンをタップすると登録方法を選べます。<br><br>
+              <b>1枚ずつ登録</b>：カメラで撮影 → トリミング → AIが自動で情報を読み取り入力フォームに反映します。<br><br>
+              <b>まとめて取り込み</b>：名刺を5枚まで並べて撮った写真をAIが一括認識して自動登録します。
+            </div>
           </div>
         </div>
+
         <div class="step-item">
           <div class="step-num">2</div>
           <div class="step-body">
-            <div class="step-title">名刺を撮影またはアップロード</div>
-            <div class="step-desc">スマホのカメラで名刺を撮るか、写真フォルダから選びます。<strong>白い背景</strong>に置いて真上から撮ると読み取り精度がUPします。</div>
-            <div class="step-tip">💡 写真は後でトリミング（切り抜き）できます</div>
+            <div class="step-title">名刺を探す</div>
+            <div class="step-desc">
+              上部の検索窓から名前・会社名・担当者で絞り込めます。<br><br>
+              フィルターで <b>MiKS / Linnas / 組織別</b> に切り替えたり、並べ替えで <b>新しい順・会社名・あかさたな</b> 順に並べることができます。<br><br>
+              「あかさたな」を選ぶと右端に索引バーが表示され、タップするとその行頭にジャンプします。
+            </div>
           </div>
         </div>
+
         <div class="step-item">
           <div class="step-num">3</div>
           <div class="step-body">
-            <div class="step-title"><span class="ms sm" style="color:var(--accent)">auto_awesome</span> AIで自動入力</div>
-            <div class="step-desc">「AIで自動入力する」ボタンを押すと、名前・会社・電話・メールなどを自動で読み取ります。内容を確認・修正してから保存してください。</div>
-            <svg width="200" height="80" viewBox="0 0 200 80" fill="none" style="display:block;margin:8px 0">
-              <rect x="10" y="20" width="55" height="40" rx="4" fill="#f0efe9" stroke="#d8d7d0" stroke-width="1.5"/>
-              <line x1="18" y1="30" x2="58" y2="30" stroke="#aaa" stroke-width="1" stroke-linecap="round"/>
-              <line x1="18" y1="38" x2="55" y2="38" stroke="#ddd" stroke-width="1" stroke-linecap="round"/>
-              <line x1="18" y1="46" x2="57" y2="46" stroke="#ddd" stroke-width="1" stroke-linecap="round"/>
-              <circle cx="100" cy="40" r="16" fill="#eef3ff" stroke="#dce8ff" stroke-width="1.5"/>
-              <text x="100" y="45" font-size="11" text-anchor="middle" font-family="sans-serif" fill="#1a56db">AI</text>
-              <rect x="140" y="20" width="55" height="40" rx="4" fill="white" stroke="#dce8ff" stroke-width="1.5"/>
-              <rect x="146" y="27" width="43" height="7" rx="2" fill="#eef3ff"/>
-              <rect x="146" y="37" width="43" height="7" rx="2" fill="#eef3ff"/>
-              <rect x="146" y="47" width="43" height="7" rx="2" fill="#eef3ff"/>
-              <path d="M67 40 L82 40" stroke="#1a56db" stroke-width="1.5" stroke-linecap="round"/>
-              <polygon points="82,37 87,40 82,43" fill="#1a56db"/>
-              <path d="M118 40 L133 40" stroke="#1a56db" stroke-width="1.5" stroke-linecap="round"/>
-              <polygon points="133,37 138,40 133,43" fill="#1a56db"/>
-            </svg>
+            <div class="step-title">名刺の詳細を見る・連絡する</div>
+            <div class="step-desc">
+              名刺をタップすると詳細画面が開きます。<br><br>
+              <span class="ms sm" style="color:var(--accent)">call</span> 電話をかける &nbsp;
+              <span class="ms sm" style="color:var(--accent)">mail</span> メールを送る &nbsp;
+              <span class="ms sm" style="color:var(--accent)">map</span> 地図で確認<br><br>
+              名刺の写真（表・裏）もタップで拡大できます。「名刺情報を編集」から修正もできます。
+            </div>
           </div>
         </div>
+
         <div class="step-item">
           <div class="step-num">4</div>
           <div class="step-body">
-            <div class="step-title">「誰がもらったか」を入力</div>
-            <div class="step-desc">自分の名前が初期入力されています。代理で登録する場合は変更してください。あとでフィルターで担当者別に絞り込めます。</div>
+            <div class="step-title">CSVで一括インポート</div>
+            <div class="step-desc">
+              EightなどからエクスポートしたCSVを読み込めます。<br>
+              設定タブ → <b>CSVインポート</b> にファイルをドラッグ＆ドロップするだけで、AIがカラムを自動判別して取り込みます。<br><br>
+              ⚠ Eightのエクスポートファイルは最初の1行（コメント行）を削除してから取り込んでください。
+            </div>
           </div>
         </div>
+
         <div class="step-item">
           <div class="step-num">5</div>
           <div class="step-body">
-            <div class="step-title">保存して完了！</div>
-            <div class="step-desc">「保存する」を押せば登録完了です。一覧画面に名刺が追加されます。</div>
-            <svg width="200" height="80" viewBox="0 0 200 80" fill="none" style="display:block;margin:8px 0">
-              <circle cx="100" cy="38" r="28" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="2"/>
-              <path d="M85 38 L97 50 L115 26" stroke="#15803d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-              <circle cx="52" cy="18" r="4" fill="#fef08a"/><circle cx="152" cy="14" r="3" fill="#fbcfe8"/>
-              <circle cx="156" cy="60" r="4" fill="#bfdbfe"/><circle cx="46" cy="58" r="3" fill="#bbf7d0"/>
-            </svg>
+            <div class="step-title">スマホのホーム画面に追加する（推奨）</div>
+            <div class="step-desc">
+              ブラウザのヘッダーが消えてアプリとして使えます。<br><br>
+              <b>iPhone (Safari)</b>：画面下の共有ボタン → 「ホーム画面に追加」<br>
+              <b>Android (Chrome)</b>：右上メニュー → 「アプリをインストール」
+            </div>
           </div>
         </div>
+
+        <div class="step-item">
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <div class="step-title">デバイスをまたいで同期される</div>
+            <div class="step-desc">
+              名刺データはGoogleスプレッドシートに保存されています。スマホ・PC・タブレットなど同じアカウントでログインすれば、どこからでも同じデータを見られます。<br><br>
+              オフラインでも直前に表示したデータは閲覧できます。
+            </div>
+          </div>
+        </div>
+
       </div>
-      <div class="guide-faq">
+
+      <div class="faq-section">
         <div class="faq-ttl">よくある質問</div>
-        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">OCRがうまく読み取れない <span class="faq-arr">▼</span></div><div class="faq-a">名刺を白い背景に置き、真上から撮影してみてください。斜め・暗い場所での撮影は精度が下がります。手動で修正することもできます。</div></div>
-        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">MiKSとLinnasでデータは共有される？ <span class="faq-arr">▼</span></div><div class="faq-a">はい。同じGoogleスプレッドシートを参照しているので、両社のメンバー全員が同じデータを見られます。フィルターで会社別に絞ることも可能です。</div></div>
-        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">登録済みの名刺を修正・削除したい <span class="faq-arr">▼</span></div><div class="faq-a">名刺をタップして詳細を開き、「✏️ 編集する」ボタンから修正できます。</div></div>
-        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">スマホのホーム画面に追加したい <span class="faq-arr">▼</span></div><div class="faq-a">iPhone(Safari): 共有ボタン →「ホーム画面に追加」<br>Android(Chrome): メニュー →「ホーム画面に追加」</div></div>
-        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">既存のCSVデータを取り込みたい <span class="faq-arr">▼</span></div><div class="faq-a">設定タブ →「CSVインポート」からファイルをアップロードしてください。AIがカラムを自動で判別して取り込みます。</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">MiKSとLinnasでデータは別々ですか？ <span class="faq-arr">▼</span></div><div class="faq-a">同じデータベースで管理されています。フィルターで切り替えて表示できます。</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">登録済みの名刺を修正・削除したい <span class="faq-arr">▼</span></div><div class="faq-a">名刺をタップして詳細を開き、「名刺情報を編集」から修正・削除できます。</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">写真のAI読み取り精度を上げるには？ <span class="faq-arr">▼</span></div><div class="faq-a">明るい場所で名刺全体が収まるように真上から撮影してください。影が入らないようにするとより正確に読み取れます。</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">パスワードを忘れた <span class="faq-arr">▼</span></div><div class="faq-a">管理者（管理者設定の権限を持つメンバー）にお問い合わせください。スプレッドシートのメンバーシートからパスワードを変更できます。</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">新しいメンバーを追加するには <span class="faq-arr">▼</span></div><div class="faq-a">管理者ログイン後、設定タブ → メンバー一覧 → 「＋ 追加」から登録できます。または、スプレッドシートの「メンバー」シートに直接行を追加しても動作します。</div></div>
+        <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">CSVで全データをエクスポートしたい <span class="faq-arr">▼</span></div><div class="faq-a">スプレッドシートの「名刺データ」シートを直接ダウンロードしてください。Googleスプレッドシートのメニュー → ファイル → ダウンロード → CSVで取得できます。</div></div>
       </div>
     </div>
 
@@ -1436,7 +1455,7 @@ function renderCards(){
         <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
           ${c.tel?`<a class="qb" href="tel:${c.tel}" onclick="event.stopPropagation()"><span class="ms sm" style="color:var(--accent)">call</span></a>`:''}
           ${c.email?`<a class="qb" href="mailto:${c.email}" onclick="event.stopPropagation()"><span class="ms sm" style="color:var(--accent)">mail</span></a>`:''}
-          <div class="mc-org ${c.org}">${c.org==='miks'?'MiKS':'Linnas'}</div>
+          <div class="mc-org ${c.org}">${getOrgName(c.org)}</div>
         </div>
       </div>
     </div>`;
@@ -1522,7 +1541,7 @@ function renderKanaList(data) {
           <div class="kana-name">${X(card.name)}</div>
           <div class="kana-sub">${X(card.company||'')}${card.dept?' · '+X(card.dept):''}</div>
         </div>
-        <div class="kana-org ${card.org}">${card.org==='miks'?'MiKS':'Linnas'}</div>
+        <div class="kana-org ${card.org}">${getOrgName(card.org)}</div>
       </div>`;
     }).join('')}
   `).join('');
@@ -1601,7 +1620,7 @@ function renderEightList(data) {
       const imgSrc = card.imageUrl||card.imageData||'';
       const kana = card.kana||card.nameKana||'';
       return `<div class="el-row" onclick="openDetail('${card.id}')" style="animation-delay:${Math.min(i*.02,.2)}s">
-        <div class="el-org-dot ${card.org}"></div>
+        <div class="el-org-dot" style="background:${getOrgColor(card.org)}"></div>
         <div class="el-left">
           ${kana?`<div class="el-kana">${X(kana)}</div>`:''}
           <div class="el-name">${X(card.name||'（氏名なし）')}</div>
@@ -1865,6 +1884,17 @@ async function bulkStartOCR() {
 
 // ════════ 組織管理 ════════
 // 組織リストをlocalStorageで管理（デフォルト: MiKS, Linnas）
+function getOrgName(orgId) {
+  const orgs = getOrgs();
+  const found = orgs.find(o => o.id === orgId);
+  return found ? found.name : orgId; // 見つからなければIDをそのまま返す
+}
+function getOrgColor(orgId) {
+  const orgs = getOrgs();
+  const found = orgs.find(o => o.id === orgId);
+  return found ? found.color : '#888';
+}
+
 function getOrgs() {
   try {
     const saved = LS.g('orgList');
@@ -1987,7 +2017,7 @@ function openDetail(id){
     </div>`;
   }).join('');
   document.getElementById('d-meta').innerHTML=`
-    <div class="d-mr"><span>組織</span><span>${c.org==='miks'?'MiKS':'Linnas'}</span></div>
+    <div class="d-mr"><span>組織</span><span>${getOrgName(c.org)}</span></div>
     <div class="d-mr"><span>受取担当者</span><span>${c.owner||'—'}</span></div>
     ${c.exchangedAt?`<div class="d-mr"><span>名刺交換日</span><span>${fmtDate(c.exchangedAt)}</span></div>`:''}
     <div class="d-mr"><span>登録日</span><span>${fmtDate(c.createdAt)}</span></div>
@@ -2260,7 +2290,7 @@ async function runOCR() {
   const bar = document.getElementById('ocr-bar');
   const ico = document.getElementById('ocr-ico');
   bar.style.opacity = '.6'; bar.style.pointerEvents = 'none';
-  ico.innerHTML = '<div class="spin" style="border-top-color:#1a56db;border-color:#dce8ff"></div>';
+  ico.innerHTML = '<div class="spin" style="border-top-color:#ff4f42;border-color:#dce8ff"></div>';
 
   const b64 = captImg.split(',')[1];
   const mt  = captImg.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
@@ -3233,21 +3263,41 @@ function showEmailFallback() {
     </div>`;
 }
 
-async function loginWithEmail() {
-  const email = document.getElementById('login-email-input')?.value.trim().toLowerCase();
-  if (!email) return;
-  document.getElementById('login-loading').classList.add('show');
-  document.getElementById('g-signin-btn').style.display = 'none';
-  await verifyAndLogin({ email, name: email.split('@')[0], picture: '' });
+
+function togglePwVisible() {
+  const input = document.getElementById('login-pw-input');
+  const icon  = document.getElementById('pw-eye-icon');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) icon.textContent = 'visibility_off';
+  } else {
+    input.type = 'password';
+    if (icon) icon.textContent = 'visibility';
+  }
 }
 
-async function verifyAndLogin({ email, name, picture }) {
+async function loginWithEmail() {
+  const email = document.getElementById('login-email-input')?.value.trim().toLowerCase();
+  const pw    = document.getElementById('login-pw-input')?.value || '';
+  if (!email) { toast('メールアドレスを入力してください', 'err'); return; }
+  if (!pw)    {
+    document.getElementById('login-pw-hint').style.display = 'block';
+    toast('パスワードを入力してください', 'err');
+    return;
+  }
+  document.getElementById('login-loading').classList.add('show');
+  document.getElementById('g-signin-btn').style.display = 'none';
+  await verifyAndLogin({ email, name: email.split('@')[0], picture: '', password: pw });
+}
+
+async function verifyAndLogin({ email, name, picture, password }) {
   try {
-    // GASでメンバー照合
+    // GASでメンバー照合（パスワード含む）
     const gasUrl = LS.g('gasUrl');
     const res = await fetch(gasUrl, {
       method: 'POST',
-      body: JSON.stringify({ action: 'verifyAdmin', email })  // verifyAdminはメンバー全体をチェック
+      body: JSON.stringify({ action: 'verifyAdmin', email, password: password||'' })
     });
     const data = await res.json();
 
@@ -3259,6 +3309,16 @@ async function verifyAndLogin({ email, name, picture }) {
       (m.gEmail||'').toLowerCase().trim() === email.toLowerCase().trim() ||
       (m.email||'').toLowerCase().trim() === email.toLowerCase().trim()
     );
+
+    // パスワード照合（GAS側で検証済み or キャッシュで照合）
+    if (data.passwordError) {
+      showLoginError('パスワードが違います');
+      return;
+    }
+    if (data.disabledError) {
+      showLoginError('このアカウントは無効化されています');
+      return;
+    }
 
     if (matched || data.isAdmin) {
       const user = {
@@ -3314,6 +3374,14 @@ function onLoginSuccess(user, isNew) {
   if (topbarAvatar && user.picture) topbarAvatar.src = user.picture;
   else if (topbarAvatar) topbarAvatar.style.display = 'none';
 
+  // ナビのマイページアイコンをアバターに変更
+  const navMyIco = document.getElementById('nav-my-ico');
+  const av = user.profile?.avatar || LS.g('myAvatar') || user.picture || '';
+  if (navMyIco && av) {
+    navMyIco.outerHTML = `<img id="nav-my-ico" src="${av}"
+      style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1.5px solid var(--border2)" alt="">`;
+  }
+
   // クラウドのプロフィールをlocalStorageに上書き同期（常に最新を反映）
   const profile = user.profile || {};
   // 基本情報（メンバーシートから）
@@ -3339,15 +3407,29 @@ function onLoginSuccess(user, isNew) {
   buildOrgSelects();
   buildOrgChips();
 
+  // ナビのマイページアイコンをアバターに変更
+  setTimeout(() => {
+    const navMyIco = document.getElementById('nav-my-ico');
+    const av = user.profile?.avatar || LS.g('myAvatar') || user.picture || '';
+    if (navMyIco && av) {
+      navMyIco.outerHTML = `<img id="nav-my-ico" src="${av}"
+        style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(255,255,255,.5)" alt="">`;
+    }
+  }, 200);
+
   // アプリデータを初期化
   if (isNew) initAppData();
   toast(`ようこそ、${user.name}さん！`, 'ok');
 }
 
-function showLoginError() {
+function showLoginError(msg) {
   document.getElementById('login-loading').classList.remove('show');
   document.getElementById('g-signin-btn').style.display = 'flex';
-  document.getElementById('login-error').classList.add('show');
+  const errEl = document.getElementById('login-error');
+  if (errEl) {
+    errEl.innerHTML = msg || 'このアカウントはメンバー登録されていません。<br>管理者に追加を依頼してください。';
+    errEl.classList.add('show');
+  }
 }
 
 function confirmLogout() {
