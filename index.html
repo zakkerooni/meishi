@@ -514,24 +514,25 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   z-index:10;
 }
 .d-nav-arrow{
+  /* body直下に配置 → overlayのblurに切られない */
   position:fixed;top:50%;
-  width:44px;height:44px;border-radius:50%;
-  background:rgba(255,255,255,.92);
-  backdrop-filter:blur(16px) saturate(200%);
-  -webkit-backdrop-filter:blur(16px) saturate(200%);
-  border:0.5px solid rgba(255,255,255,.7);
+  width:48px;height:48px;border-radius:50%;
+  /* 背景はシンプルな白・blur不使用（stacking context外なので不要） */
+  background:#fff;
+  border:1px solid rgba(0,0,0,.1);
   cursor:pointer;
-  /* 常にdisplay:flex、visibility:hiddenで制御 */
   display:flex;align-items:center;justify-content:center;
   visibility:hidden;opacity:0;
-  box-shadow:3px 3px 10px rgba(0,0,0,.12),-1px -1px 4px rgba(255,255,255,.8);
-  transition:opacity .2s,visibility .2s,box-shadow .15s;z-index:9000;
+  box-shadow:0 4px 16px rgba(0,0,0,.16);
+  transition:opacity .22s,visibility .22s,transform .15s;
+  z-index:99999; /* overlayより確実に上 */
   pointer-events:none;
+  transform:translateY(-50%);
 }
 .d-nav-arrow.visible{visibility:visible;opacity:1;pointer-events:all}
-.d-nav-arrow:hover{box-shadow:4px 4px 14px rgba(0,0,0,.16),-2px -2px 6px rgba(255,255,255,.9)}
-.d-nav-prev{left:calc(50% - 280px);transform:translateY(-50%)}
-.d-nav-next{right:calc(50% - 280px);transform:translateY(-50%)}
+.d-nav-arrow:hover{transform:translateY(-50%) scale(1.08);box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.d-nav-prev{left:max(8px, calc(50% - 288px))}
+.d-nav-next{right:max(8px, calc(50% - 288px))}
 @media(max-width:800px){.d-nav-arrow{display:none!important}}
 /* detail-modal layout */
 #detail-modal{display:flex;align-items:flex-end;justify-content:center}
@@ -644,7 +645,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 /* Eight風ヘッダー */
 .d-eight-header{padding:18px 20px 14px}
 .d-eight-name{font-size:28px;font-weight:700;color:var(--text);letter-spacing:-.02em;margin-bottom:2px}
-.d-eight-kana{font-size:12px;color:var(--text3);margin-bottom:6px;letter-spacing:.04em}
+.d-eight-kana{font-size:11px;color:var(--text3);margin-bottom:2px;letter-spacing:.06em;font-family:var(--mono)}
 .d-eight-actions{display:flex;gap:10px;align-items:center;margin-top:14px}
 /* アイコンボタン: キーカラー背景・白文字 */
 .d-act-circle,.d-act-map{
@@ -1474,13 +1475,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <button class="d-close-btn" onclick="closeM('detail-modal')">
       <span class="ms sm" style="color:var(--text3)">close</span>
     </button>
-    <!-- デスクトップ用 左右矢印ナビ -->
-    <button class="d-nav-arrow d-nav-prev" onclick="navigateDetail(-1)" title="前のカード">
-      <span class="ms" style="font-size:22px;color:var(--text2)">chevron_left</span>
-    </button>
-    <button class="d-nav-arrow d-nav-next" onclick="navigateDetail(1)" title="次のカード">
-      <span class="ms" style="font-size:22px;color:var(--text2)">chevron_right</span>
-    </button>
+<!-- nav arrows moved to body -->
     <!-- ヘッダー: ふりがな・名前・会社・役職・アクションボタン -->
     <div class="d-eight-header">
       <div id="d-kana" class="d-eight-kana"></div>
@@ -1580,7 +1575,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="action-popup-btn cancel" onclick="closeMemoChoice()">キャンセル</div>
   </div>
 </div>
-<input type="file" id="memo-photo-input" accept="image/*" style="display:none" onchange="memoHandlePhoto(event)">
+<input type="file" id="memo-photo-input" accept="image/*,.heic,.heif" style="display:none" onchange="memoHandlePhoto(event)">
 
 <!-- テキストメモモーダル -->
 <div class="memo-modal-overlay" id="memo-modal" onclick="closeMemoModal()">
@@ -1901,6 +1896,10 @@ async function saveMemoModal() {
   // メモ表示欄を即時更新
   const mt=document.getElementById('d-memo-text');
   if(mt) mt.textContent=card.memo||'';
+  const mp=document.getElementById('d-memo-photos');
+  if(mp) mp.innerHTML=(card.memoPhotos||[]).map(src=>
+    `<img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;cursor:pointer;margin:0 8px 8px 0" onclick="openImgZoom('${src}')">`
+  ).join('');
   toast('メモを保存しました ✓','ok');
   renderCards();
 }
@@ -2539,7 +2538,9 @@ function openDetail(id){
   curDetailId=id;
 
   // ── ヘッダー（会社名・役職をヘッダー内に統合） ──
-  document.getElementById('d-kana').textContent = c.kana||c.nameKana||'';
+  const kanaVal = c.kana||c.nameKana||'';
+  const kanaEl = document.getElementById('d-kana');
+  if(kanaEl){ kanaEl.textContent = kanaVal; kanaEl.style.display = kanaVal ? '' : 'none'; }
   document.getElementById('d-name').textContent = c.name||'';
   document.getElementById('d-co').textContent = c.company||'';
   document.getElementById('d-dept').textContent = c.dept||'';
@@ -2768,6 +2769,10 @@ function readAndProcess(file, areaId, isBack, callback) {
     toast('PDFは直接アップロードしてください（画像変換非対応）');
     return;
   }
+  // HEIC/HEIF: Objectの URLをImageに読み込んでCanvasでJPEGに変換
+  const isHeic = file.type === 'image/heic' || file.type === 'image/heif' ||
+    /\.hei[cf]$/i.test(file.name);
+
   const reader = new FileReader();
   let ab = null;
   const abReader = new FileReader();
@@ -2776,12 +2781,34 @@ function readAndProcess(file, areaId, isBack, callback) {
 
   reader.onload = ev => {
     const dataUrl = ev.target.result;
+    if (isHeic) {
+      // HEICはimgに直接srcとして渡してCanvasで変換
+      const img = new Image();
+      const blobUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        const cv = document.createElement('canvas');
+        cv.width = Math.min(img.naturalWidth, 1600);
+        cv.height = Math.round(img.naturalHeight * cv.width / img.naturalWidth);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        const jpeg = cv.toDataURL('image/jpeg', 0.85);
+        URL.revokeObjectURL(blobUrl);
+        if (callback) callback(jpeg);
+        else setImgPreview(jpeg, areaId, isBack);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(blobUrl);
+        // フォールバック: そのまま処理
+        processImageFile(dataUrl, ab, result => {
+          if (callback) callback(result);
+          else setImgPreview(result, areaId, isBack);
+        });
+      };
+      img.src = blobUrl;
+      return;
+    }
     setTimeout(() => processImageFile(dataUrl, ab, result => {
-      if (callback) {
-        callback(result);  // 一括取り込み用コールバック
-      } else {
-        setImgPreview(result, areaId, isBack);
-      }
+      if (callback) callback(result);
+      else setImgPreview(result, areaId, isBack);
     }), 100);
   };
   reader.readAsDataURL(file);
@@ -3885,39 +3912,46 @@ async function saveMyPage(){
   document.getElementById('my-org-badge').className = 'my-org-badge '+org;
   updateOcrEngineStatus();
 
-  // GASのメンバーシートに同期（profileカラムにJSON保存）
+  // GASのメンバーシートに同期
   const gasUrl = LS.g('gasUrl');
-  if(gasUrl && currentUser?.memberId) {
-    const profile = { email, tel, role, bio,
+  if(gasUrl && currentUser?.email) {
+    const profile = {
+      email, tel, role, bio,
       geminiKey: gKey, claudeKey: cKey,
       avatar: LS.g('myAvatar')||'',
       pref2col: LS.g('pref-2col'),
       prefAutofill: LS.g('pref-autofill'),
       updatedAt: new Date().toISOString()
     };
-    // 既存メンバーを更新（nameとorgも更新）
+    // memberId がない場合はgEmailで照合（GAS側でgEmailマッチを使う）
     const member = {
-      id: currentUser.memberId,
-      name, org,
-      email: currentUser.email,
+      id:     currentUser.memberId || '',   // 空でもgEmail照合にフォールバック
+      name,   org,
+      email:  currentUser.email,
       gEmail: currentUser.email,
-      role: currentUser.role,
+      role:   currentUser.role || 'member',
+      avatar: LS.g('myAvatar')||'',
       profile: JSON.stringify(profile),
     };
     try {
-      await fetch(gasUrl, { method:'POST', body: JSON.stringify({ action:'saveMember', member }) });
-      // セッションも更新
-      currentUser.name = name; currentUser.org = org; currentUser.profile = profile;
-      localStorage.setItem('meishi_user', JSON.stringify(currentUser));
-      toast('プロフィールを保存・同期しました ✓', 'ok');
+      const res = await fetch(gasUrl, {
+        method: 'POST',
+        body: JSON.stringify({ action:'saveMember', member })
+      });
+      const result = await res.json().catch(()=>({}));
+      if(result.ok !== false) {
+        currentUser.name = name; currentUser.org = org; currentUser.profile = profile;
+        localStorage.setItem('meishi_user', JSON.stringify(currentUser));
+        toast('プロフィールを保存・同期しました ✓', 'ok');
+      } else {
+        toast('ローカルに保存しました（クラウド同期失敗）', '');
+      }
     } catch(e) {
+      console.warn('saveMyPage GAS error:', e);
       toast('ローカルに保存しました（クラウド同期失敗）', '');
     }
   } else {
     toast('プロフィールを保存しました ✓', 'ok');
-    if(gasUrl && !currentUser?.memberId) {
-      toast('クラウド同期はログイン後に有効になります', '');
-    }
   }
 }
 
@@ -4228,5 +4262,12 @@ window.addEventListener('resize', ()=>{ if(allCards.length) renderCards(); });
 // onLoginSuccess → initAppData の後に呼ぶ
 initGoogleAuth();
 </script>
+<!-- ── デスクトップ カードナビ矢印（body直下・overlay外） ── -->
+<button class="d-nav-arrow d-nav-prev" onclick="navigateDetail(-1)" title="前のカード">
+  <span class="ms" style="font-size:24px;color:var(--text2)">chevron_left</span>
+</button>
+<button class="d-nav-arrow d-nav-next" onclick="navigateDetail(1)" title="次のカード">
+  <span class="ms" style="font-size:24px;color:var(--text2)">chevron_right</span>
+</button>
 </body>
 </html>
