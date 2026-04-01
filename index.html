@@ -715,8 +715,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="page active" id="page-cards">
       <div id="filterbar">
         <div class="chip active" data-f="all" onclick="setF('all',this)">すべて</div>
-        <div class="chip cm" data-f="miks" onclick="setF('miks',this)"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--miks);margin-right:4px;vertical-align:middle"></span>MiKS</div>
-        <div class="chip cl" data-f="linnas" onclick="setF('linnas',this)"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--linnas);margin-right:4px;vertical-align:middle"></span>Linnas</div>
+        <div id="org-chips"></div>
         <div id="ow-chips"></div>
       </div>
       <div id="sortbar">
@@ -1202,7 +1201,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="fg"><div class="field"><label>氏名 *</label><input id="m-name" type="text" placeholder="山田 花子"></div><div class="field"><label>所属 *</label><select id="m-org"><option value="miks">MiKS</option><option value="linnas">Linnas</option></select></div></div>
       <div class="fg full" style="margin-top:8px"><div class="field"><label>メール</label><input id="m-email" type="email" placeholder="hanako@example.com"></div></div>
       <div class="fg full" style="margin-top:8px"><div class="field"><label>電話</label><input id="m-tel" type="tel" placeholder="090-xxxx-xxxx"></div></div>
-      <div class="fg full" style="margin-top:8px"><div class="field"><label>権限</label><select id="m-role" onchange="toggleAdmField()"><option value="member">一般ユーザー</option><option value="admin">管理者</option></select></div></div>
+      <div class="fg full" style="margin-top:8px"><div class="field"><label>権限</label><select id="m-role" onchange="toggleAdmField()"><option value="member">メンバー</option><option value="admin">管理者</option></select></div></div>
       <div class="fg full" style="margin-top:8px" id="m-gemail-wrap"><div class="field"><label>Googleアカウント（管理者認証用）</label><input id="m-gemail" type="email" placeholder="admin@gmail.com"></div></div>
       <div class="cr" style="margin-top:16px"><div class="cb" onclick="closeM('member-modal')">キャンセル</div><div class="cb pri" onclick="saveMember()">保存する</div></div>
     </div>
@@ -1297,7 +1296,7 @@ async function loadCards(){
   // 1. キャッシュを即時表示（ちらつき防止）
   const cached=LS.g('cardsCache');
   if(cached){
-    try{allCards=JSON.parse(cached);renderCards();buildOwChips();}catch(e){}
+    try{allCards=JSON.parse(cached);renderCards();buildOwChips();buildOrgChips();}catch(e){}
   } else {
     document.getElementById('card-grid').innerHTML='<div class="load-state"><div class="spin"></div>読み込み中…</div>';
   }
@@ -1309,7 +1308,7 @@ async function loadCards(){
     if(d.cards){
       allCards=d.cards;
       LS.s('cardsCache',JSON.stringify(d.cards));
-      renderCards();buildOwChips();
+      renderCards();buildOwChips();buildOrgChips();
     }
   }catch(e){ console.warn('loadCards:',e.message); }
 }
@@ -1333,10 +1332,10 @@ function setS(v,el){
 
 function renderCards(){
   const q=document.getElementById('q').value.toLowerCase();
+  const orgIds = getOrgs().map(o=>o.id);
   let d=allCards.filter(c=>{
-    if(curF==='miks'&&c.org!=='miks')return false;
-    if(curF==='linnas'&&c.org!=='linnas')return false;
-    if(curF!=='all'&&curF!=='miks'&&curF!=='linnas'&&c.owner!==curF)return false;
+    if(orgIds.includes(curF)&&c.org!==curF)return false;
+    if(!orgIds.includes(curF)&&curF!=='all'&&c.owner!==curF)return false;
     if(q){const t=[c.company,c.dept,c.name,c.role,c.email,c.tel,c.addr,c.owner,c.memo].join(' ').toLowerCase();if(!t.includes(q))return false}
     return true;
   });
@@ -1820,6 +1819,50 @@ async function bulkStartOCR() {
   renderCards(); buildOwChips();
   const doneCount = bulkFiles.filter(f=>f.status==='done').length;
   toast(`${doneCount}件の名刺を登録しました ✓`, 'ok');
+}
+
+
+// ════════ 組織管理 ════════
+// 組織リストをlocalStorageで管理（デフォルト: MiKS, Linnas）
+function getOrgs() {
+  try {
+    const saved = LS.g('orgList');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return [
+    { id: 'miks',   name: LS.g('cloudOrg1Name') || 'MiKS',   color: LS.g('themeOrg1Color') || '#1a56db' },
+    { id: 'linnas', name: LS.g('cloudOrg2Name') || 'Linnas', color: LS.g('themeOrg2Color') || '#be185d' },
+  ];
+}
+
+function saveOrgs(orgs) {
+  LS.s('orgList', JSON.stringify(orgs));
+  buildOrgSelects(); // 全セレクトボックスを更新
+}
+
+// 全ての組織セレクトボックスを動的に生成
+function buildOrgSelects() {
+  const orgs = getOrgs();
+  const opts = orgs.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+  ['f-org','m-org','mp-org','s-myorg'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = opts;
+    // 以前の値を保持
+    if (orgs.find(o => o.id === cur)) el.value = cur;
+  });
+}
+
+function buildOrgChips(){
+  const orgs = getOrgs();
+  const el = document.getElementById('org-chips');
+  if (!el) return;
+  el.innerHTML = orgs.map((o,i) => {
+    const cls = i===0 ? 'cm' : i===1 ? 'cl' : '';
+    return `<div class="chip ${cls}" data-f="${o.id}" onclick="setF('${o.id}',this)">` +
+      `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${o.color};margin-right:4px;vertical-align:middle"></span>${o.name}</div>`;
+  }).join('');
 }
 
 function buildOwChips(){
@@ -2370,7 +2413,7 @@ async function saveCard(){
     imageData: localImg || allCards[idx]?.imageData || '',  // base64はローカルに保存
   };
   if(idx>=0)allCards[idx]=saved;else allCards.unshift(saved);
-  closeM('reg-modal');renderCards();buildOwChips();toast('保存しました ✓','ok');
+  closeM('reg-modal');renderCards();buildOwChips();buildOrgChips();toast('保存しました ✓','ok');
   btn.innerHTML='<span class="ms sm" style="color:white">save</span> 保存する';btn.classList.remove('dis');isEdit=false;
 }
 
@@ -2512,7 +2555,7 @@ async function doImport(){
   document.getElementById('is-ok').textContent=ok;
   document.getElementById('is-skip').textContent=skip;
   document.getElementById('import-stats').style.display='grid';
-  renderCards();buildOwChips();updateMyStats();
+  renderCards();buildOwChips();buildOrgChips();updateMyStats();
   toast(`${ok}件取り込みました ✓`,'ok');
   btn.textContent='取り込む';btn.classList.remove('dis');
 }
@@ -2617,7 +2660,7 @@ function renderMembers(){
   document.getElementById('member-list').innerHTML=members.map(m=>{
     const ini=m.name.split(' ').map(p=>p[0]).join('').slice(0,2);
     const bgs=['#eef3ff','#fdf2f8','#f0fdf4','#fffbeb'];
-    return`<div class="member-item"><div class="m-av" style="background:${bgs[parseInt(m.id.replace(/\D/g,''))%4]}">${m.avatar?`<img src="${m.avatar}" alt="">`:`<span>${ini}</span>`}</div><div class="m-info"><div class="m-name">${X(m.name)}</div><div class="m-meta">${X(m.email||m.tel||'')}</div><div class="m-badges"><span class="bdg ${m.role==='admin'?'adm':'mem'}">${m.role==='admin'?'管理者':'一般'}</span><span class="bdg ${m.org}">${m.org==='miks'?'MiKS':'Linnas'}</span></div></div>${isAdmin?`<div class="m-btn" onclick="openEditMember('${m.id}')">編集</div>`:''}</div>`;
+    return`<div class="member-item"><div class="m-av" style="background:${bgs[parseInt(m.id.replace(/\D/g,''))%4]}">${m.avatar?`<img src="${m.avatar}" alt="">`:`<span>${ini}</span>`}</div><div class="m-info"><div class="m-name">${X(m.name)}</div><div class="m-meta">${X(m.email||m.tel||'')}</div><div class="m-badges"><span class="bdg ${m.role==='admin'?'adm':'mem'}">${m.role==='admin'?'管理者':'メンバー'}</span><span class="bdg ${m.org}">${m.org==='miks'?'MiKS':'Linnas'}</span></div></div>${isAdmin?`<div class="m-btn" onclick="openEditMember('${m.id}')">編集</div>`:''}</div>`;
   }).join('');
 }
 
@@ -2675,8 +2718,54 @@ async function verifyAdmin(){
 function grantAdmin(){
   isAdmin=true;closeM('admin-modal');renderMembers();renderAdminSection();
   // カラーピッカーの初期値をセット（DOMが描画された後）
-  setTimeout(initThemeColorPickers, 50);
+  setTimeout(()=>{ initThemeColorPickers(); renderAdminOrgList(); }, 50);
   toast('管理者として認証しました ✓','ok');
+}
+
+
+// ════════ 管理者: 組織リスト管理 ════════
+function renderAdminOrgList() {
+  const orgs = getOrgs();
+  const el = document.getElementById('s-org-list');
+  if (!el) return;
+  el.innerHTML = orgs.map((o, i) => `
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="color" value="${o.color}" onchange="adminOrgColor(${i},this.value)"
+        style="width:32px;height:32px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px;background:none;flex-shrink:0">
+      <input type="text" value="${o.name}" oninput="adminOrgName(${i},this.value)"
+        style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:var(--font);background:var(--bg2);color:var(--text);outline:none">
+      <div style="font-size:10px;color:var(--text3);font-family:var(--mono);flex-shrink:0;min-width:40px">${o.id}</div>
+      ${i >= 2 ? `<button onclick="adminRemoveOrg(${i})" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--border);background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span class="ms" style="font-size:14px;color:var(--err)">delete</span>
+      </button>` : '<div style="width:28px"></div>'}
+    </div>`).join('');
+}
+
+function adminOrgName(idx, val) {
+  const orgs = getOrgs();
+  if (orgs[idx]) { orgs[idx].name = val; saveOrgs(orgs); }
+}
+function adminOrgColor(idx, val) {
+  const orgs = getOrgs();
+  if (orgs[idx]) { orgs[idx].color = val; saveOrgs(orgs); renderAdminOrgList(); }
+}
+function adminAddOrg() {
+  const orgs = getOrgs();
+  if (orgs.length >= 6) { toast('組織は最大6つまでです', ''); return; }
+  const newId = 'org' + (orgs.length + 1);
+  orgs.push({ id: newId, name: '新しい組織', color: '#6b7280' });
+  saveOrgs(orgs);
+  renderAdminOrgList();
+  toast('組織を追加しました。名前を編集してください', 'ok');
+}
+function adminRemoveOrg(idx) {
+  const orgs = getOrgs();
+  if (idx < 2) { toast('MiKSとLinnasは削除できません', ''); return; }
+  if (!confirm(`「${orgs[idx].name}」を削除しますか？`)) return;
+  orgs.splice(idx, 1);
+  saveOrgs(orgs);
+  renderAdminOrgList();
+  toast('組織を削除しました', 'ok');
 }
 
 function renderAdminSection(){
@@ -2705,12 +2794,11 @@ function renderAdminSection(){
       <input type="text" id="s-api-key" placeholder="sk-ant-..." value="${LS.g('apiKey')}">
     </div>
     <div class="s-card">
-      <div class="s-row"><div class="s-ico"><span class="ms sm" style="color:var(--text3);font-size:18px">business</span></div><div class="s-info"><div class="s-lbl">組織1 名称</div></div></div>
-      <input type="text" id="s-org1" placeholder="MiKS" value="${LS.g('cloudOrg1Name')||'MiKS'}">
-    </div>
-    <div class="s-card">
-      <div class="s-row"><div class="s-ico"><span class="ms sm" style="color:var(--text3);font-size:18px">business</span></div><div class="s-info"><div class="s-lbl">組織2 名称</div></div></div>
-      <input type="text" id="s-org2" placeholder="Linnas" value="${LS.g('cloudOrg2Name')||'Linnas'}">
+      <div class="s-row"><div class="s-ico"><span class="ms sm" style="color:var(--accent);font-size:18px">corporate_fare</span></div><div class="s-info"><div class="s-lbl">組織リスト</div><div class="s-desc">追加・編集・削除できます</div></div></div>
+      <div id="s-org-list" style="margin-top:8px;display:flex;flex-direction:column;gap:6px"></div>
+      <button onclick="adminAddOrg()" style="margin-top:8px;width:100%;padding:8px;background:var(--bg2);border:1px dashed var(--border2);border-radius:var(--r-sm);color:var(--accent);font-size:13px;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:6px">
+        <span class="ms sm" style="color:var(--accent)">add</span> 組織を追加
+      </button>
     </div>
     <div class="s-card">
       <div class="s-row"><div class="s-ico"><span class="ms sm" style="color:#16a34a;font-size:18px">table_chart</span></div><div class="s-info"><div class="s-lbl">スプレッドシートID</div></div></div>
@@ -2786,8 +2874,9 @@ async function saveAdminSettings(){
   const gasUrl    = document.getElementById('s-gas-url')?.value.trim()||'';
   const geminiKey = document.getElementById('s-gemini-key')?.value.trim()||'';
   const apiKey    = document.getElementById('s-api-key')?.value.trim()||'';
-  const org1      = document.getElementById('s-org1')?.value.trim()||'MiKS';
-  const org2      = document.getElementById('s-org2')?.value.trim()||'Linnas';
+  const orgs = getOrgs();
+  const org1 = orgs[0]?.name || 'MiKS';
+  const org2 = orgs[1]?.name || 'Linnas';
   const sheetId   = document.getElementById('s-sheet-id')?.value.trim()||'';
   const folderId  = document.getElementById('s-folder-id')?.value.trim()||'';
   const appTitle  = document.getElementById('s-app-title')?.value.trim()||'名刺整理くん';
@@ -3259,20 +3348,31 @@ async function initAppData() {
   await syncFromCloud();
   loadCards();
   updateOcrEngineStatus();
+  buildOrgChips();
 }
 initSwitches();
 toggleAdmField();
+buildOrgSelects(); // 組織セレクトを動的に生成
 
 // ウィンドウリサイズ時にビュー切り替え
 window.addEventListener('resize', ()=>{ if(allCards.length) renderCards(); });
+buildOrgSelects();
+buildOrgChips();
+buildOrgSelects(); // 組織セレクトを動的に生成
 
-// Google認証を初期化
-if (GOOGLE_CLIENT_ID) {
-  // Google GSI読み込み待ち
-  window.onload = () => initGoogleAuth();
-} else {
-  // Client IDなし → メール入力フォールバック
-  initGoogleAuth();
+// Google認証を初期化（DOM確実に読み込まれた後）
+document.addEventListener('DOMContentLoaded', () => {
+  if (GOOGLE_CLIENT_ID) {
+    // Google GSI読み込み待ち
+    if (window.google?.accounts) initGoogleAuth();
+    else window.onload = () => initGoogleAuth();
+  } else {
+    initGoogleAuth();
+  }
+});
+// DOMContentLoadedが既に発火済みの場合（スクリプトが遅延実行された場合）の保険
+if (document.readyState !== 'loading') {
+  if (!GOOGLE_CLIENT_ID) initGoogleAuth();
 }
 </script>
 </body>
