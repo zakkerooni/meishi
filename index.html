@@ -625,6 +625,48 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   .d-acts{grid-template-columns:repeat(2,1fr)}
   .map-grid{grid-template-columns:1fr auto 1fr}
 }
+
+/* ── 一括取り込みモーダル ── */
+#bulk-modal .sheet{max-height:96dvh}
+.bulk-preview-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+  gap:10px;padding:12px 16px;
+}
+.bulk-card{
+  border:1px solid var(--border);border-radius:var(--r);
+  overflow:hidden;position:relative;background:var(--bg2);
+  animation:fu .2s ease both;
+}
+.bulk-card img{width:100%;aspect-ratio:3/2;object-fit:cover;display:block}
+.bulk-card-status{
+  position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;flex-direction:column;gap:4px;
+  background:rgba(0,0,0,.45);color:white;font-size:11px;
+  opacity:0;transition:opacity .2s;
+}
+.bulk-card.processing .bulk-card-status{opacity:1}
+.bulk-card.done .bulk-card-status{opacity:1;background:rgba(21,128,61,.7)}
+.bulk-card.error .bulk-card-status{opacity:1;background:rgba(185,28,28,.6)}
+.bulk-card-remove{
+  position:absolute;top:4px;right:4px;width:20px;height:20px;
+  border-radius:50%;background:rgba(0,0,0,.5);color:white;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;cursor:pointer;z-index:2;
+}
+.bulk-drop-area{
+  border:2px dashed var(--border2);border-radius:var(--r-lg);
+  margin:16px;padding:32px 16px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  color:var(--text3);cursor:pointer;transition:border-color .15s,background .15s;
+  text-align:center;
+}
+.bulk-drop-area:hover,.bulk-drop-area.drag{
+  border-color:var(--accent);background:var(--accent-bg);
+}
+.bulk-progress{
+  margin:0 16px 12px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;display:none
+}
+.bulk-progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
 </style>
 </head>
 <body>
@@ -968,14 +1010,69 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   </nav>
 
   <!-- FAB -->
-  <button id="fab" onclick="openRegModal()">
-    <span class="ms" style="font-size:20px;color:white">add</span>
-    名刺を追加
-  </button>
+  <div id="fab-wrap" style="position:fixed;bottom:76px;right:16px;z-index:40;display:flex;flex-direction:column;align-items:flex-end;gap:8px" id="fab-wrap">
+    <div id="fab-sub" style="display:none;flex-direction:column;align-items:flex-end;gap:8px;animation:fu .18s ease">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--text2);box-shadow:var(--sh)">まとめて取り込み（AI）</span>
+        <button onclick="openBulkModal()" style="width:44px;height:44px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(26,86,219,.4)">
+          <span class="ms" style="font-size:20px;color:white">photo_library</span>
+        </button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--text2);box-shadow:var(--sh)">1枚ずつ登録</span>
+        <button onclick="openRegModal();closeFabMenu()" style="width:44px;height:44px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(26,86,219,.4)">
+          <span class="ms" style="font-size:20px;color:white">add</span>
+        </button>
+      </div>
+    </div>
+    <button id="fab" onclick="toggleFabMenu()" style="display:flex;align-items:center;gap:8px;padding:0 20px 0 14px;height:50px;border-radius:25px;background:var(--accent);border:none;cursor:pointer;color:white;font-size:14px;font-weight:500;font-family:var(--font);box-shadow:0 4px 20px rgba(26,86,219,.38);transition:box-shadow .15s,transform .1s">
+      <span class="ms" style="font-size:20px;color:white" id="fab-icon">add</span>
+      名刺を追加
+    </button>
+  </div>
 </div>
 
 <!-- TOAST -->
 <div id="toast"></div>
+
+<!-- ── BULK IMPORT MODAL ── -->
+<div class="overlay" id="bulk-modal">
+  <div class="sheet">
+    <div class="sheet-handle" onclick="closeM('bulk-modal')"></div>
+    <div class="sheet-hd">
+      <div class="sheet-title">まとめて取り込み</div>
+      <div class="sheet-x" onclick="closeM('bulk-modal')"><span class="ms sm">close</span></div>
+    </div>
+    <div style="padding:0 16px 8px;font-size:12px;color:var(--text3);line-height:1.6">
+      名刺を並べて撮影した写真を選択してください。AIが1枚ずつ認識して自動登録します。<br>
+      <span style="color:var(--warn);font-weight:500">最大5枚・画像は明るく・名刺全体が写っているものが最適です</span>
+    </div>
+    <!-- ドロップエリア -->
+    <div class="bulk-drop-area" id="bulk-drop"
+      onclick="document.getElementById('bulk-fi').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="bulkHandleDrop(event)">
+      <span class="ms" style="font-size:36px;color:var(--text3)">add_photo_alternate</span>
+      <div style="font-size:14px;font-weight:500;color:var(--text2)">写真を選択 / ドロップ</div>
+      <div style="font-size:11px">複数選択可（最大5枚）</div>
+    </div>
+    <input type="file" id="bulk-fi" accept="image/*" multiple style="display:none" onchange="bulkHandleFiles(event)">
+    <!-- プレビューグリッド -->
+    <div class="bulk-preview-grid" id="bulk-grid"></div>
+    <!-- プログレスバー -->
+    <div class="bulk-progress" id="bulk-progress">
+      <div class="bulk-progress-bar" id="bulk-bar" style="width:0%"></div>
+    </div>
+    <!-- アクションボタン -->
+    <div style="padding:8px 16px 20px;display:flex;gap:8px">
+      <div class="cb" onclick="bulkClear()" style="flex:0 0 auto">クリア</div>
+      <div class="cb pri" id="bulk-start-btn" onclick="bulkStartOCR()" style="flex:1">
+        <span class="ms sm" style="color:white">auto_awesome</span> AIで一括認識・登録
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ── REGISTER MODAL ── -->
 <div class="overlay" id="reg-modal">
@@ -1523,6 +1620,195 @@ async function guessKana(name) {
   } catch(e) {}
 }
 
+
+// ════════ FABメニュー ════════
+let fabOpen = false;
+function toggleFabMenu() {
+  fabOpen = !fabOpen;
+  const sub = document.getElementById('fab-sub');
+  const ico = document.getElementById('fab-icon');
+  if(sub) sub.style.display = fabOpen ? 'flex' : 'none';
+  if(ico) ico.textContent = fabOpen ? 'close' : 'add';
+}
+function closeFabMenu() {
+  fabOpen = false;
+  const sub = document.getElementById('fab-sub');
+  const ico = document.getElementById('fab-icon');
+  if(sub) sub.style.display = 'none';
+  if(ico) ico.textContent = 'add';
+}
+
+// ════════ 一括取り込み ════════
+let bulkFiles = [];
+
+function openBulkModal() {
+  closeFabMenu();
+  bulkClear();
+  openM('bulk-modal');
+}
+
+function bulkHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('bulk-drop').classList.remove('drag');
+  const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+  bulkAddFiles(files);
+}
+
+function bulkHandleFiles(e) {
+  bulkAddFiles([...e.target.files]);
+  e.target.value = '';
+}
+
+function bulkAddFiles(files) {
+  const remain = 5 - bulkFiles.length;
+  const toAdd = files.slice(0, remain);
+  if (files.length > remain) toast(`最大5枚まで。${remain}枚を追加しました`, '');
+  toAdd.forEach(file => {
+    readAndProcess(file, null, false, (dataUrl) => {
+      bulkFiles.push({ file, dataUrl, status: 'ready' });
+      bulkRenderGrid();
+    });
+  });
+}
+
+function bulkRenderGrid() {
+  const grid = document.getElementById('bulk-grid');
+  grid.innerHTML = bulkFiles.map((item, i) => `
+    <div class="bulk-card ${item.status}" id="bulk-card-${i}">
+      <img src="${item.dataUrl}" alt="">
+      <div class="bulk-card-status">
+        ${item.status === 'processing' ? '<span class="ms sm" style="color:white;animation:sp .8s linear infinite">autorenew</span><span>認識中…</span>' : ''}
+        ${item.status === 'done' ? '<span class="ms sm" style="color:white">check_circle</span><span>登録済み</span>' : ''}
+        ${item.status === 'error' ? '<span class="ms sm" style="color:white">error</span><span>失敗</span>' : ''}
+      </div>
+      ${item.status === 'ready' ? `<div class="bulk-card-remove" onclick="bulkRemove(${i})"><span class="ms" style="font-size:12px;color:white">close</span></div>` : ''}
+    </div>`).join('');
+  // スタート可否
+  const btn = document.getElementById('bulk-start-btn');
+  if(btn) btn.style.opacity = bulkFiles.length ? '1' : '0.5';
+}
+
+function bulkRemove(i) {
+  bulkFiles.splice(i, 1);
+  bulkRenderGrid();
+}
+
+function bulkClear() {
+  bulkFiles = [];
+  document.getElementById('bulk-grid').innerHTML = '';
+  const bar = document.getElementById('bulk-bar');
+  if(bar) bar.style.width = '0%';
+  document.getElementById('bulk-progress').style.display = 'none';
+}
+
+async function bulkStartOCR() {
+  if (!bulkFiles.length) return;
+  const ready = bulkFiles.filter(f => f.status === 'ready');
+  if (!ready.length) { toast('取り込み済みです', ''); return; }
+
+  const gasUrl = LS.g('gasUrl');
+  const geminiKey = LS.g('geminiKey') || LS.g('geminiKeyUser');
+  const claudeKey = LS.g('apiKey') || LS.g('apiKeyUser');
+  if (!geminiKey && !claudeKey) {
+    toast('APIキーを設定してください', 'err'); return;
+  }
+
+  const prog = document.getElementById('bulk-progress');
+  const bar  = document.getElementById('bulk-bar');
+  prog.style.display = 'block';
+
+  let done = 0;
+  const myName = LS.g('myName') || '';
+  const myOrg  = LS.g('myOrg')  || 'miks';
+
+  for (let i = 0; i < bulkFiles.length; i++) {
+    const item = bulkFiles[i];
+    if (item.status !== 'ready') continue;
+
+    // UIを処理中に
+    item.status = 'processing';
+    bulkRenderGrid();
+
+    try {
+      // OCRプロンプト（1枚の写真に複数名刺がある場合も対応）
+      const b64 = item.dataUrl.split(',')[1];
+      const mt  = item.dataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+      const prompt = `この画像に写っている名刺の情報をすべて読み取り、名刺1枚につき1つのJSONオブジェクトとして配列で返してください。
+画像に複数枚の名刺が写っている場合は複数のオブジェクトを返してください。
+各オブジェクトのフォーマット:
+{"company":"","dept":"","name":"","nameKana":"","role":"","email":"","tel":"","mobile":"","zip":"","addr":"","url":"","memo":""}
+- nameKana: ふりがな（ひらがな）。英語表記があれば読みを推測
+- zip: 郵便番号のみ（〒不要）
+- addr: 住所（郵便番号除く）
+- JSONのみ返してください。説明文・マークダウン不要。`;
+
+      let results = [];
+      if (geminiKey) {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ contents:[{ parts:[
+            { inline_data:{ mime_type:mt, data:b64 } },
+            { text: prompt }
+          ]}], generationConfig:{ temperature:0.1, maxOutputTokens:2000 }})
+        });
+        const d = await res.json();
+        const txt = d.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+        const clean = txt.replace(/```json|```/g,'').trim();
+        results = JSON.parse(clean);
+      } else {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','x-api-key':claudeKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+          body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:2000, messages:[{ role:'user', content:[
+            { type:'image', source:{ type:'base64', media_type:mt, data:b64 }},
+            { type:'text', text:prompt }
+          ]}]})
+        });
+        const d = await res.json();
+        const txt = d.content?.[0]?.text || '[]';
+        const clean = txt.replace(/```json|```/g,'').trim();
+        results = JSON.parse(clean);
+      }
+
+      if (!Array.isArray(results)) results = [results];
+
+      // 各名刺をカードとして保存
+      for (const r of results) {
+        if (!r.name && !r.company) continue;
+        const addr = r.zip ? `〒${r.zip} ${r.addr||''}` : (r.addr||'');
+        const card = {
+          id: Date.now().toString() + Math.random().toString(36).slice(2,6),
+          company: r.company||'', dept: r.dept||'', name: r.name||'',
+          kana: r.nameKana||'', role: r.role||'', email: r.email||'',
+          tel: r.tel||'', mobile: r.mobile||'', addr,
+          url: r.url||'', memo: r.memo||'',
+          org: myOrg, owner: myName,
+          imageData: item.dataUrl,
+          exchangedAt: '', createdAt: fmtDate(new Date().toISOString())
+        };
+        allCards.push(card);
+        LS.s('cardsCache', JSON.stringify(allCards));
+        if (gasUrl) {
+          try { await fetch(gasUrl, { method:'POST', body: JSON.stringify({ action:'add', card }) }); } catch(e) {}
+        }
+      }
+
+      item.status = 'done';
+    } catch(e) {
+      console.error('bulk OCR error:', e);
+      item.status = 'error';
+    }
+
+    done++;
+    bar.style.width = `${(done / ready.length) * 100}%`;
+    bulkRenderGrid();
+  }
+
+  renderCards(); buildOwChips();
+  const doneCount = bulkFiles.filter(f=>f.status==='done').length;
+  toast(`${doneCount}件の名刺を登録しました ✓`, 'ok');
+}
+
 function buildOwChips(){
   const owners=[...new Set(allCards.map(c=>c.owner).filter(Boolean))].sort();
   document.getElementById('ow-chips').innerHTML=owners.map(o=>`<div class="chip" data-f="${X(o)}" onclick="setF('${X(o)}',this)">${X(o)}</div>`).join('');
@@ -1743,17 +2029,12 @@ function setImgPreview(dataUrl, areaId, isBack) {
   area.appendChild(img);
 }
 
-function readAndProcess(file, areaId, isBack) {
-  // PDF: 1ページ目をCanvasに描画してJPEG化
+function readAndProcess(file, areaId, isBack, callback) {
   if (file.type === 'application/pdf') {
-    toast('PDFは画像として取込みます…');
-    const url = URL.createObjectURL(file);
-    // pdf.jsが必要なため簡易メッセージのみ
     toast('PDFは直接アップロードしてください（画像変換非対応）');
     return;
   }
   const reader = new FileReader();
-  // arrayBufferでEXIF取得、dataUrlでプレビュー
   let ab = null;
   const abReader = new FileReader();
   abReader.onload = ev => { ab = ev.target.result; };
@@ -1761,9 +2042,12 @@ function readAndProcess(file, areaId, isBack) {
 
   reader.onload = ev => {
     const dataUrl = ev.target.result;
-    // 少し待ってarrayBufferが揃ってから処理
     setTimeout(() => processImageFile(dataUrl, ab, result => {
-      setImgPreview(result, areaId, isBack);
+      if (callback) {
+        callback(result);  // 一括取り込み用コールバック
+      } else {
+        setImgPreview(result, areaId, isBack);
+      }
     }), 100);
   };
   reader.readAsDataURL(file);
@@ -2618,8 +2902,16 @@ function initThemeColorPickers(){
 }
 // ════════ MY PAGE ════════
 function loadMyPageData(){
-  const name=LS.g('myName')||'ゲスト';
-  const org=LS.g('myOrg')||'miks';
+  // currentUserがあればセッション情報を優先（クラウド同期済み）
+  if(currentUser?.profile) {
+    const p = currentUser.profile;
+    if(p.email) LS.s('mpEmail', p.email);
+    if(p.tel)   LS.s('mpTel',   p.tel);
+    if(p.role)  LS.s('mpRole',  p.role);
+    if(p.bio)   LS.s('mpBio',   p.bio);
+  }
+  const name=LS.g('myName')||currentUser?.name||'ゲスト';
+  const org=LS.g('myOrg')||currentUser?.org||'miks';
   const email=LS.g('mpEmail')||'';
   const tel=LS.g('mpTel')||'';
   const role=LS.g('mpRole')||'';
@@ -2665,30 +2957,69 @@ function handleMyAvatar(e){
     LS.s('myAvatar',myAvData);
     document.getElementById('my-avatar-display').innerHTML=`<img src="${myAvData}" alt="">`;
     document.getElementById('nav-my-ico').innerHTML=`<img src="${myAvData}" style="width:24px;height:24px;border-radius:50%;object-fit:cover" alt="">`;
-    toast('アバターを更新しました ✓','ok');
+    // アバターをプロフィールに即時反映してGAS同期
+    if(currentUser) { currentUser.profile = currentUser.profile||{}; currentUser.profile.avatar=myAvData; localStorage.setItem('meishi_user',JSON.stringify(currentUser)); }
+    toast('アバターを更新しました。プロフィール保存で同期されます', 'ok');
   };r.readAsDataURL(f);e.target.value='';
 }
 
-function saveMyPage(){
-  const name=document.getElementById('mp-name').value.trim();
-  const org=document.getElementById('mp-org').value;
-  LS.s('myName',name);LS.s('myOrg',org);
-  LS.s('mpEmail',document.getElementById('mp-email').value.trim());
-  LS.s('mpTel',document.getElementById('mp-tel').value.trim());
-  LS.s('mpRole',document.getElementById('mp-role').value.trim());
-  LS.s('mpBio',document.getElementById('mp-bio').value.trim());
-  // 個人APIキーを保存（管理者共通キーと別管理）
-  const gKey=document.getElementById('mp-gemini-key').value.trim();
-  const cKey=document.getElementById('mp-claude-key').value.trim();
-  if(gKey) LS.s('geminiKeyUser',gKey);
-  if(cKey) LS.s('apiKeyUser',cKey);
-  // フォールバック: 個人Claudeキーをapiキーとしても使用
-  if(cKey && !LS.g('apiKey')) LS.s('apiKey',cKey);
-  document.getElementById('my-name-display').textContent=name||'ゲスト';
-  document.getElementById('my-org-badge').textContent=org==='miks'?'MiKS':'Linnas';
-  document.getElementById('my-org-badge').className='my-org-badge '+org;
+async function saveMyPage(){
+  const name  = document.getElementById('mp-name').value.trim();
+  const org   = document.getElementById('mp-org').value;
+  const email = document.getElementById('mp-email').value.trim();
+  const tel   = document.getElementById('mp-tel').value.trim();
+  const role  = document.getElementById('mp-role').value.trim();
+  const bio   = document.getElementById('mp-bio').value.trim();
+  const gKey  = document.getElementById('mp-gemini-key').value.trim();
+  const cKey  = document.getElementById('mp-claude-key').value.trim();
+
+  // ローカルに保存
+  LS.s('myName', name); LS.s('myOrg', org);
+  LS.s('mpEmail', email); LS.s('mpTel', tel);
+  LS.s('mpRole', role);  LS.s('mpBio', bio);
+  if(gKey) LS.s('geminiKeyUser', gKey);
+  if(cKey){ LS.s('apiKeyUser', cKey); if(!LS.g('apiKey')) LS.s('apiKey', cKey); }
+
+  // UI更新
+  document.getElementById('my-name-display').textContent = name||'ゲスト';
+  document.getElementById('my-org-badge').textContent = org==='miks'?'MiKS':'Linnas';
+  document.getElementById('my-org-badge').className = 'my-org-badge '+org;
   updateOcrEngineStatus();
-  toast('プロフィールを保存しました ✓','ok');
+
+  // GASのメンバーシートに同期（profileカラムにJSON保存）
+  const gasUrl = LS.g('gasUrl');
+  if(gasUrl && currentUser?.memberId) {
+    const profile = { email, tel, role, bio,
+      geminiKey: gKey, claudeKey: cKey,
+      avatar: LS.g('myAvatar')||'',
+      pref2col: LS.g('pref-2col'),
+      prefAutofill: LS.g('pref-autofill'),
+      updatedAt: new Date().toISOString()
+    };
+    // 既存メンバーを更新（nameとorgも更新）
+    const member = {
+      id: currentUser.memberId,
+      name, org,
+      email: currentUser.email,
+      gEmail: currentUser.email,
+      role: currentUser.role,
+      profile: JSON.stringify(profile),
+    };
+    try {
+      await fetch(gasUrl, { method:'POST', body: JSON.stringify({ action:'saveMember', member }) });
+      // セッションも更新
+      currentUser.name = name; currentUser.org = org; currentUser.profile = profile;
+      localStorage.setItem('meishi_user', JSON.stringify(currentUser));
+      toast('プロフィールを保存・同期しました ✓', 'ok');
+    } catch(e) {
+      toast('ローカルに保存しました（クラウド同期失敗）', '');
+    }
+  } else {
+    toast('プロフィールを保存しました ✓', 'ok');
+    if(gasUrl && !currentUser?.memberId) {
+      toast('クラウド同期はログイン後に有効になります', '');
+    }
+  }
 }
 
 // ════════ GOOGLE AUTH ════════
@@ -2698,7 +3029,7 @@ let currentUser = null;
 
 function initGoogleAuth() {
   // セッションに保存済みのユーザーがいれば即ログイン
-  const saved = sessionStorage.getItem('meishi_user');
+  const saved = localStorage.getItem('meishi_user');
   if (saved) {
     try {
       const user = JSON.parse(saved);
@@ -2789,9 +3120,22 @@ async function verifyAndLogin({ email, name, picture }) {
     );
 
     if (matched || data.isAdmin) {
-      const user = { email, name: matched?.name || name, picture, org: matched?.org || 'miks', role: matched?.role || 'member' };
+      const user = {
+        email,
+        name:    matched?.name  || name,
+        picture,
+        org:     matched?.org   || 'miks',
+        role:    matched?.role  || 'member',
+        memberId: matched?.id   || null,
+        // profileカラムにJSON保存された詳細設定
+        profile: (() => {
+          try { return JSON.parse(matched?.profile || '{}'); } catch(e) { return {}; }
+        })()
+      };
       currentUser = user;
-      sessionStorage.setItem('meishi_user', JSON.stringify(user));
+      localStorage.setItem('meishi_user', JSON.stringify(user));
+      // メンバー一覧をキャッシュ
+      LS.s('members', JSON.stringify(members));
       onLoginSuccess(user, true);
     } else {
       showLoginError();
@@ -2808,7 +3152,7 @@ async function verifyAndLogin({ email, name, picture }) {
       if (matched) {
         const user = { email, name: matched.name || name, picture, org: matched.org, role: matched.role };
         currentUser = user;
-        sessionStorage.setItem('meishi_user', JSON.stringify(user));
+        localStorage.setItem('meishi_user', JSON.stringify(user));
         onLoginSuccess(user, true);
         return;
       }
@@ -2829,15 +3173,28 @@ function onLoginSuccess(user, isNew) {
   if (topbarAvatar && user.picture) topbarAvatar.src = user.picture;
   else if (topbarAvatar) topbarAvatar.style.display = 'none';
 
-  // マイ設定に自動反映
-  if (isNew) {
-    if (!LS.g('myName') && user.name) LS.s('myName', user.name);
-    if (!LS.g('myOrg') && user.org) LS.s('myOrg', user.org);
+  // クラウドのプロフィールをlocalStorageに上書き同期（常に最新を反映）
+  const profile = user.profile || {};
+  // 基本情報（メンバーシートから）
+  LS.s('myName', user.name || LS.g('myName') || '');
+  LS.s('myOrg',  user.org  || LS.g('myOrg')  || 'miks');
+  // 詳細プロフィール（profileカラムから）
+  if (profile.email)       LS.s('mpEmail',      profile.email);
+  if (profile.tel)         LS.s('mpTel',         profile.tel);
+  if (profile.role)        LS.s('mpRole',         profile.role);
+  if (profile.bio)         LS.s('mpBio',          profile.bio);
+  if (profile.geminiKey)   LS.s('geminiKeyUser',  profile.geminiKey);
+  if (profile.claudeKey)   LS.s('apiKeyUser',     profile.claudeKey);
+  if (profile.pref2col !== undefined) LS.s('pref-2col', profile.pref2col);
+  if (profile.prefAutofill !== undefined) LS.s('pref-autofill', profile.prefAutofill);
+  // アバター画像
+  if (profile.avatar) {
+    LS.s('myAvatar', profile.avatar);
   }
 
-  // アプリデータを初期化（初回のみ）
+  // アプリデータを初期化
   if (isNew) initAppData();
-  toast(`ようこそ、${user.name}さん！`,'ok');
+  toast(`ようこそ、${user.name}さん！`, 'ok');
 }
 
 function showLoginError() {
@@ -2848,7 +3205,7 @@ function showLoginError() {
 
 function confirmLogout() {
   if (confirm('ログアウトしますか？')) {
-    sessionStorage.removeItem('meishi_user');
+    localStorage.removeItem('meishi_user');
     currentUser = null;
     document.getElementById('login-screen').classList.remove('hidden');
     document.getElementById('app').style.display = 'none';
