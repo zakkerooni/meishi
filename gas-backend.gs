@@ -282,16 +282,37 @@ function saveMember(member) {
   const sheet   = getOrCreateSheet(SH_MEMBERS, MEMBER_HEADERS);
   const data    = sheet.getDataRange().getValues();
   const now     = new Date().toISOString();
+  const headers = data[0];
 
-  // 既存行を検索
+  // idカラムとgEmailカラムのインデックスを取得
+  const idIdx     = headers.indexOf('id');
+  const gEmailIdx = headers.indexOf('gEmail');
+  const emailIdx  = headers.indexOf('email');
+
+  // 既存行を検索（id → gEmail → email の順で照合）
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(member.id)) {
+    const rowId     = String(data[i][idIdx]     || '');
+    const rowGEmail = String(data[i][gEmailIdx] || '').toLowerCase();
+    const rowEmail  = String(data[i][emailIdx]  || '').toLowerCase();
+    const memberEmail = (member.gEmail || member.email || '').toLowerCase();
+
+    if (
+      (member.id && rowId === String(member.id)) ||
+      (memberEmail && rowGEmail === memberEmail) ||
+      (memberEmail && rowEmail  === memberEmail)
+    ) {
+      // 既存行を更新（idは変えない、createdAtも保持）
+      const existingId        = data[i][idIdx];
+      const existingCreatedAt = data[i][headers.indexOf('createdAt')] || now;
+      member.id        = member.id || existingId;
+      member.createdAt = existingCreatedAt;
       sheet.getRange(i+1, 1, 1, MEMBER_HEADERS.length)
         .setValues([MEMBER_HEADERS.map(h => member[h] ?? '')]);
       return;
     }
   }
   // 新規追加
+  if (!member.id)        member.id        = 'm_' + Date.now();
   if (!member.createdAt) member.createdAt = now;
   sheet.appendRow(MEMBER_HEADERS.map(h => member[h] ?? ''));
 }
