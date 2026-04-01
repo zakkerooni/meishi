@@ -21,7 +21,7 @@ const CARD_HEADERS = [
 ];
 
 const MEMBER_HEADERS = [
-  'id','name','org','email','tel','role','gEmail','avatar','createdAt'
+  'id','name','org','email','tel','role','gEmail','avatar','createdAt','profile'
 ];
 
 const CONFIG_KEYS = [
@@ -97,14 +97,20 @@ function doPost(e) {
       return jsonRes({ ok:true });
     }
 
-    // ── 管理者認証チェック ──
+    // ── 認証チェック（管理者 + 一般メンバー両対応）──
     if (action === 'verifyAdmin') {
       const members = getMembers();
+      const email = (body.email||'').toLowerCase().trim();
       const adminEmails = members
         .filter(m => m.role === 'admin' && m.gEmail)
         .map(m => m.gEmail.toLowerCase().trim());
-      const isAdmin = adminEmails.includes((body.email||'').toLowerCase().trim());
-      return jsonRes({ ok:true, isAdmin });
+      const isAdmin = adminEmails.includes(email);
+      // メンバー照合（gEmail or email列）
+      const matched = members.find(m =>
+        (m.gEmail||'').toLowerCase().trim() === email ||
+        (m.email||'').toLowerCase().trim() === email
+      );
+      return jsonRes({ ok:true, isAdmin, isMember: !!matched, member: matched || null });
     }
 
     // 後方互換 (旧クライアント)
