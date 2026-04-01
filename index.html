@@ -1235,7 +1235,13 @@ let isAdmin=false;
 let csvRows=[],csvHeaders=[],csvMapping={};
 
 
-const APP_ICON = 'icon-192.png';
+// アイコンパス: GitHub Pages では /リポジトリ名/ がベースになるので
+// 相対パスで問題ない。ただしSW経由でキャッシュされるよう絶対パスを使う
+const APP_ICON = (() => {
+  // manifest.json の start_url から base を推定
+  const base = location.pathname.replace(/\/[^\/]*$/, '/');
+  return base + 'icon-192.png';
+})();
 const DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbwUXXxnKKVuXiLTJH0-O0lP7j8shTV5rT4Ag0uJcEPj6Xp8lCCHPwmQzfc_VW9MYbBW/exec';
 const LS={g:k=>localStorage.getItem(k)||(k==='gasUrl'?DEFAULT_GAS_URL:''),s:(k,v)=>localStorage.setItem(k,v)};
 const X=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -2680,7 +2686,7 @@ function openEditMember(id){
   toggleAdmField();openM('member-modal');
 }
 
-function toggleAdmField(){document.getElementById('m-gemail-wrap').style.display=document.getElementById('m-role').value==='admin'?'':'none'}
+function toggleAdmField(){const w=document.getElementById('m-gemail-wrap');if(w)w.style.display=document.getElementById('m-role')?.value==='admin'?'':'none';}
 function handleAvatar(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{avData=ev.target.result;document.getElementById('av-prev').innerHTML=`<img src="${avData}" alt="">`;};r.readAsDataURL(f);e.target.value=''}
 
 async function saveMember(){
@@ -3294,6 +3300,12 @@ function onLoginSuccess(user, isNew) {
     LS.s('myAvatar', profile.avatar);
   }
 
+  // アプリDOM初期化（ログイン後に初めて実行）
+  initSwitches();
+  toggleAdmField();
+  buildOrgSelects();
+  buildOrgChips();
+
   // アプリデータを初期化
   if (isNew) initAppData();
   toast(`ようこそ、${user.name}さん！`, 'ok');
@@ -3350,30 +3362,13 @@ async function initAppData() {
   updateOcrEngineStatus();
   buildOrgChips();
 }
-initSwitches();
-toggleAdmField();
-buildOrgSelects(); // 組織セレクトを動的に生成
-
 // ウィンドウリサイズ時にビュー切り替え
 window.addEventListener('resize', ()=>{ if(allCards.length) renderCards(); });
-buildOrgSelects();
-buildOrgChips();
-buildOrgSelects(); // 組織セレクトを動的に生成
 
-// Google認証を初期化（DOM確実に読み込まれた後）
-document.addEventListener('DOMContentLoaded', () => {
-  if (GOOGLE_CLIENT_ID) {
-    // Google GSI読み込み待ち
-    if (window.google?.accounts) initGoogleAuth();
-    else window.onload = () => initGoogleAuth();
-  } else {
-    initGoogleAuth();
-  }
-});
-// DOMContentLoadedが既に発火済みの場合（スクリプトが遅延実行された場合）の保険
-if (document.readyState !== 'loading') {
-  if (!GOOGLE_CLIENT_ID) initGoogleAuth();
-}
+// Google認証を初期化 — ログイン前はアプリDOM(display:none)に触らない
+// buildOrgSelects/buildOrgChips/initSwitches/toggleAdmFieldは
+// onLoginSuccess → initAppData の後に呼ぶ
+initGoogleAuth();
 </script>
 </body>
 </html>
