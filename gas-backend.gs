@@ -21,7 +21,7 @@ const CARD_HEADERS = [
 ];
 
 const MEMBER_HEADERS = [
-  'id','name','org','email','tel','role','gEmail','avatar','createdAt','profile'
+  'id','name','org','email','tel','role','gEmail','avatar','createdAt','profile','password','disabled'
 ];
 
 const CONFIG_KEYS = [
@@ -100,16 +100,32 @@ function doPost(e) {
     // ── 認証チェック（管理者 + 一般メンバー両対応）──
     if (action === 'verifyAdmin') {
       const members = getMembers();
-      const email = (body.email||'').toLowerCase().trim();
-      const adminEmails = members
-        .filter(m => m.role === 'admin' && m.gEmail)
-        .map(m => m.gEmail.toLowerCase().trim());
-      const isAdmin = adminEmails.includes(email);
+      const email    = (body.email||'').toLowerCase().trim();
+      const password = (body.password||'').trim();
+
       // メンバー照合（gEmail or email列）
       const matched = members.find(m =>
         (m.gEmail||'').toLowerCase().trim() === email ||
         (m.email||'').toLowerCase().trim() === email
       );
+
+      // アカウント無効チェック
+      if (matched && (matched.disabled||'').toString().toLowerCase() === 'true') {
+        return jsonRes({ ok:false, disabledError: true });
+      }
+
+      // パスワードチェック（passwordカラムが設定されている場合のみ）
+      if (matched && matched.password && matched.password.trim() !== '') {
+        if (password !== matched.password.trim()) {
+          return jsonRes({ ok:false, passwordError: true });
+        }
+      }
+
+      const adminEmails = members
+        .filter(m => m.role === 'admin' && m.gEmail)
+        .map(m => m.gEmail.toLowerCase().trim());
+      const isAdmin = adminEmails.includes(email);
+
       return jsonRes({ ok:true, isAdmin, isMember: !!matched, member: matched || null });
     }
 
