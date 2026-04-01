@@ -10,6 +10,7 @@
 <title>名刺整理くん</title>
 <link rel="manifest" href="manifest.json">
 <script src="https://accounts.google.com/gsi/client" async></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" async onload="pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
@@ -524,7 +525,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   display:flex;align-items:center;justify-content:center;
   visibility:hidden;opacity:0;
   box-shadow:3px 3px 10px rgba(0,0,0,.12),-1px -1px 4px rgba(255,255,255,.8);
-  transition:opacity .2s,visibility .2s,box-shadow .15s;z-index:500;
+  transition:opacity .2s,visibility .2s,box-shadow .15s;z-index:9000;
   pointer-events:none;
 }
 .d-nav-arrow.visible{visibility:visible;opacity:1;pointer-events:all}
@@ -535,7 +536,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 /* detail-modal layout */
 #detail-modal{display:flex;align-items:flex-end;justify-content:center}
 #detail-modal.open{pointer-events:all}
-#detail-modal .sheet{position:relative;width:100%;max-width:480px}
+#detail-modal .sheet{position:relative;width:100%;max-width:480px;will-change:transform}
 /* メモボタン（右下フローティング） */
 .d-memo-fab{
   position:fixed;bottom:32px;right:20px;
@@ -673,8 +674,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .d-info-ico{font-size:16px;color:var(--text3);width:20px;text-align:center;flex-shrink:0}
 .d-info-content{flex:1;min-width:0}
 .d-info-label{font-size:11px;color:var(--text3);margin-bottom:1px;letter-spacing:.02em}
-.d-info-val{font-size:15px;color:var(--text);word-break:break-all;text-decoration:none;display:block}
-.d-info-val.link{color:var(--accent)}
+.d-info-val{font-size:15px;color:var(--accent);word-break:break-all;text-decoration:none;display:block}
+.d-info-val.plain{color:var(--text)}
 .d-info-tag{font-size:10px;border:1px solid var(--border2);border-radius:4px;padding:1px 5px;color:var(--text3);font-family:var(--mono);flex-shrink:0}
 /* メタ情報 */
 .d-meta{padding:12px 20px;display:flex;flex-direction:column;gap:4px}
@@ -968,8 +969,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <!-- TOP BAR -->
   <div id="topbar">
     <div class="logo" style="display:flex;align-items:center;gap:8px">
-      <img id="app-icon-topbar" src="" alt="" style="width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0">
-      <span class="logo-meishi" id="app-logo-text">名刺整理くん</span>
+      <img id="app-icon-topbar" src="" alt="" style="width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0;cursor:pointer" onclick="switchTab('cards',document.querySelector('[data-page=cards]'))">
+      <span class="logo-meishi" id="app-logo-text" style="cursor:pointer" onclick="switchTab('cards',document.querySelector('[data-page=cards]'))">名刺整理くん</span>
     </div>
     <div class="search-wrap" id="search-wrap">
       <span class="ms sm" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none">search</span>
@@ -1382,9 +1383,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       ondrop="bulkHandleDrop(event)">
       <span class="ms" style="font-size:36px;color:var(--text3)">add_photo_alternate</span>
       <div style="font-size:14px;font-weight:500;color:var(--text2)">写真を選択 / ドロップ</div>
-      <div style="font-size:11px">複数選択可（最大5枚）</div>
+      <div style="font-size:11px">画像・PDF複数選択可（最大5枚）</div>
     </div>
-    <input type="file" id="bulk-fi" accept="image/*" multiple style="display:none" onchange="bulkHandleFiles(event)">
+    <input type="file" id="bulk-fi" accept="image/*,application/pdf" multiple style="display:none" onchange="bulkHandleFiles(event)">
     <!-- プレビューグリッド -->
     <div class="bulk-preview-grid" id="bulk-grid"></div>
     <!-- プログレスバー -->
@@ -1534,8 +1535,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
         <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text3)">
           <span class="ms" style="font-size:16px;color:var(--text3)">edit_note</span>メモ
         </div>
-        <button onclick="openMemoChoice()" style="border:none;background:none;cursor:pointer;padding:4px 8px;border-radius:8px;font-size:12px;color:var(--accent);font-family:var(--font);display:flex;align-items:center;gap:4px">
-          <span class="ms" style="font-size:14px;color:var(--accent)">add</span>追加
+        <button onclick="openMemoChoice()" style="width:32px;height:32px;border-radius:50%;background:white;border:1.5px solid var(--accent);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:1px 1px 4px rgba(0,0,0,.08)">
+          <span class="ms" style="font-size:18px;color:var(--accent)">add</span>
         </button>
       </div>
       <div id="d-memo-text" style="padding:0 16px 12px;font-size:14px;color:var(--text);line-height:1.7;min-height:32px;white-space:pre-wrap"></div>
@@ -1729,16 +1730,13 @@ function initSwitches(){
 // ════════ LOAD CARDS ════════
 async function loadCards(){
   const gasUrl=LS.g('gasUrl');
-  // 1. キャッシュを即時表示（ちらつき防止）
+  // キャッシュを即時表示（0ms遅延なし）
   const cached=LS.g('cardsCache');
   if(cached){
     try{allCards=JSON.parse(cached);renderCards();buildOwChips();buildOrgChips();}catch(e){}
-  } else {
-    document.getElementById('card-grid').innerHTML='<div class="load-state"><div class="spin"></div>読み込み中…</div>';
   }
   if(!gasUrl) return;
-  // 2. GASから最新（syncFromCloudで取得済みなので不要だが念のため）
-  // syncFromCloudが並列で取得するのでここではスキップ
+  // syncFromCloudが並列でfetchするのでここでは何もしない
 }
 
 function demo(){return[
@@ -2262,11 +2260,46 @@ function bulkAddFiles(files) {
   const toAdd = files.slice(0, remain);
   if (files.length > remain) toast(`最大5枚まで。${remain}枚を追加しました`, '');
   toAdd.forEach(file => {
-    readAndProcess(file, null, false, (dataUrl) => {
-      bulkFiles.push({ file, dataUrl, status: 'ready' });
-      bulkRenderGrid();
-    });
+    if (file.type === 'application/pdf') {
+      // PDFをCanvas経由でJPEGに変換
+      pdfToImages(file).then(images => {
+        images.forEach(dataUrl => {
+          bulkFiles.push({ file, dataUrl, status: 'ready' });
+          bulkRenderGrid();
+        });
+      }).catch(()=>toast('PDF変換に失敗しました', 'err'));
+    } else {
+      readAndProcess(file, null, false, (dataUrl) => {
+        bulkFiles.push({ file, dataUrl, status: 'ready' });
+        bulkRenderGrid();
+      });
+    }
   });
+}
+
+// PDF→画像変換（pdf.js不要・ブラウザAPIで対応）
+async function pdfToImages(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const blob = new Blob([arrayBuffer], {type:'application/pdf'});
+  const url = URL.createObjectURL(blob);
+  // pdf.jsがあれば使う。なければiframe経由でcanvasに描画
+  if (window.pdfjsLib) {
+    const pdf = await pdfjsLib.getDocument(url).promise;
+    const images = [];
+    for (let i=1; i<=Math.min(pdf.numPages, 5); i++) {
+      const page = await pdf.getPage(i);
+      const vp = page.getViewport({scale:2});
+      const canvas = document.createElement('canvas');
+      canvas.width=vp.width; canvas.height=vp.height;
+      await page.render({canvasContext:canvas.getContext('2d'), viewport:vp}).promise;
+      images.push(canvas.toDataURL('image/jpeg', 0.85));
+    }
+    URL.revokeObjectURL(url);
+    return images;
+  }
+  // フォールバック: 画像として扱えるページはdataURLをそのまま
+  toast('PDF.jsが未読み込みです。画像ファイルを使用してください', '');
+  return [];
 }
 
 function bulkRenderGrid() {
@@ -3236,6 +3269,28 @@ async function syncFromCloud() {
       if (data.members?.length) {
         LS.s('members', JSON.stringify(data.members));
         renderMembers();
+        // ログインユーザーのプロフィールをスプシメンバーから同期
+        if (currentUser?.email) {
+          const em = currentUser.email.toLowerCase();
+          const mm = data.members.find(m=>(m.gEmail||m.email||'').toLowerCase()===em);
+          if (mm) {
+            if (mm.name)   { currentUser.name=mm.name;   LS.s('myName',mm.name); }
+            if (mm.org)    { currentUser.org=mm.org;     LS.s('myOrg', mm.org); }
+            if (mm.avatar) { currentUser.profile=currentUser.profile||{}; currentUser.profile.avatar=mm.avatar; LS.s('myAvatar',mm.avatar); }
+            try {
+              const p=JSON.parse(mm.profile||'{}');
+              if(p.email) LS.s('mpEmail',p.email);
+              if(p.tel)   LS.s('mpTel',  p.tel);
+              if(p.role)  LS.s('mpRole', p.role);
+              if(p.bio)   LS.s('mpBio',  p.bio);
+              if(p.geminiKey) LS.s('geminiKeyUser',p.geminiKey);
+              if(p.claudeKey) LS.s('apiKeyUser',   p.claudeKey);
+              if(p.avatar) { LS.s('myAvatar',p.avatar); currentUser.profile=currentUser.profile||{}; currentUser.profile.avatar=p.avatar; }
+            } catch(e){}
+            localStorage.setItem('meishi_user',JSON.stringify(currentUser));
+            loadMyPageData();
+          }
+        }
       }
       applyCloudConfig(cfg);
       updateOcrEngineStatus();
@@ -3872,15 +3927,18 @@ const GOOGLE_CLIENT_ID = ''; // ← Google Cloud ConsoleのクライアントID�
 let currentUser = null;
 
 function initGoogleAuth() {
-  // セッションに保存済みのユーザーがいれば即ログイン
+  // localStorageに保存済みのユーザーがいれば即ログイン（リロード後も維持）
   const saved = localStorage.getItem('meishi_user');
   if (saved) {
     try {
       const user = JSON.parse(saved);
-      currentUser = user;
-      onLoginSuccess(user, false);
-      return;
-    } catch(e) {}
+      if (user && user.email) {
+        currentUser = user;
+        // ログイン状態でリロードした場合、スプシから最新プロフィールを非同期取得
+        onLoginSuccess(user, true); // isNew=trueで毎回最新を取得
+        return;
+      }
+    } catch(e) { localStorage.removeItem('meishi_user'); }
   }
 
   // Google Client IDなければメール入力（HTML直接埋め込み済みなので何もしない）
@@ -4001,7 +4059,12 @@ async function verifyAndLogin({ email, name, picture, password }) {
         memberId: matched?.id   || null,
         // profileカラムにJSON保存された詳細設定
         profile: (() => {
-          try { return JSON.parse(matched?.profile || '{}'); } catch(e) { return {}; }
+          try {
+            const p = JSON.parse(matched?.profile || '{}');
+            // メンバーシートのavatar列を優先（マイページと相互連動）
+            if (matched?.avatar) p.avatar = matched.avatar;
+            return p;
+          } catch(e) { return {}; }
         })()
       };
       currentUser = user;
