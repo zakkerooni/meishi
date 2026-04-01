@@ -107,9 +107,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   letter-spacing:var(--ls-tight);display:flex;align-items:center;gap:0;
 }
 .logo-meishi{
-  color:#00aeef;
-  font-size:18px;font-weight:700;letter-spacing:.04em;
-  -webkit-text-stroke:.3px rgba(0,0,0,.15);
+  color:var(--text2);
+  font-size:13px;font-weight:400;letter-spacing:.01em;
+  font-family:system-ui,-apple-system,sans-serif;
 }
 /* fallback for older logo structure */
 .logo .miks{color:var(--miks)}
@@ -153,6 +153,27 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .nav-ico{font-size:22px;line-height:1;transition:transform .2s;letter-spacing:normal}
 .nav-item.active .nav-ico{transform:translateY(-1px)}
 .nav-lbl{font-size:10px;font-weight:500;letter-spacing:.01em}
+
+/* ── ナビ中央+ボタン ── */
+.nav-add-btn{flex:1.2;position:relative;border:none;background:none;cursor:pointer;padding:0}
+.nav-add-circle{
+  width:50px;height:50px;border-radius:50%;
+  background:var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  margin:-12px auto 0;
+  box-shadow:0 3px 14px rgba(26,86,219,.45);
+  transition:transform .15s,box-shadow .15s;
+}
+.nav-add-btn:hover .nav-add-circle,
+.nav-add-btn:active .nav-add-circle{
+  transform:scale(1.08);
+  box-shadow:0 5px 18px rgba(26,86,219,.55);
+}
+.nav-add-btn.open .nav-add-circle{
+  background:var(--text2);
+  transform:rotate(45deg) scale(1.05);
+  box-shadow:0 3px 10px rgba(0,0,0,.2);
+}
 .nav-dot{
   position:absolute;top:6px;width:4px;height:4px;border-radius:50%;
   background:var(--accent);opacity:0;transform:scale(0);
