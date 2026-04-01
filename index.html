@@ -1414,17 +1414,20 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     </div>
     <div class="rs active" id="rs1">
       <!-- 両面モードトグル -->
-      <div style="display:flex;align-items:center;justify-content:flex-end;padding:8px 4px 4px;gap:8px">
-        <span style="font-size:12px;color:var(--text3)">両面撮影</span>
-        <label style="position:relative;width:40px;height:22px;cursor:pointer">
+      <div style="background:var(--bg2);border-radius:var(--r);padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">両面撮影モード</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">表・裏の2枚をまとめて登録</div>
+        </div>
+        <label style="position:relative;width:44px;height:24px;cursor:pointer;flex-shrink:0">
           <input type="checkbox" id="double-side-toggle" style="opacity:0;width:0;height:0;position:absolute"
             onchange="onDoubleSideToggle()">
-          <span id="double-side-track" style="position:absolute;inset:0;border-radius:11px;background:var(--border2);transition:background .2s"></span>
-          <span id="double-side-thumb" style="position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s"></span>
+          <span id="double-side-track" style="position:absolute;inset:0;border-radius:12px;background:var(--border2);transition:background .2s"></span>
+          <span id="double-side-thumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:white;box-shadow:0 1px 4px rgba(0,0,0,.25);transition:left .2s"></span>
         </label>
       </div>
-      <!-- 表面 -->
-      <div style="font-size:11px;color:var(--text3);padding:0 4px 4px;font-weight:600" id="cap-label-front">表面</div>
+      <!-- 表面ラベル -->
+      <div style="font-size:11px;color:var(--text3);padding:0 2px 4px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">表面</div>
       <div id="cap-area" onclick="document.getElementById('fi').click()">
         <span class="ms" style="font-size:28px;color:var(--text3)">photo_camera</span>
         <span class="cap-hint">タップして画像を選択</span>
@@ -1491,7 +1494,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
         </div>
         <input type="file" id="fi-back" accept="image/*" style="display:none" onchange="handleFileBack(event)">
       </div>
-      <div class="cr"><div class="cb" onclick="toS1()" style="flex:0 0 auto;padding:10px 14px">← 戻る</div><div class="cb pri dis" id="save-btn" onclick="saveCard()"><span class="ms sm" style="color:white">save</span> 保存する</div></div>
+      <div class="cr" style="gap:6px">
+        <div class="cb" onclick="toS1()" style="flex:0 0 auto;padding:10px 14px">← 戻る</div>
+        <div class="cb dis" id="save-continue-btn" onclick="continueReg=true;saveCard()" style="flex:0 0 auto;padding:10px 14px;font-size:12px">
+          <span class="ms sm" style="color:var(--text2)">add_a_photo</span>続けて登録
+        </div>
+        <div class="cb pri dis" id="save-btn" onclick="saveCard()"><span class="ms sm" style="color:white">save</span> 保存する</div>
+      </div>
     </div>
   </div>
 </div>
@@ -1880,8 +1889,13 @@ function openTextMemo() {
   const card = allCards.find(c=>c.id===curDetailId);
   if(!card) return;
   document.getElementById('memo-textarea').value = card.memo||'';
-  _memoPhotos = [];
-  document.getElementById('memo-photos').innerHTML = '';
+  _memoPhotos = (card.memoPhotos||[]).slice(); // 既存写真を引き継ぐ
+  // 既存写真をプレビューに表示
+  const photosEl = document.getElementById('memo-photos');
+  if(photosEl) photosEl.innerHTML = _memoPhotos.map((src,i)=>
+    `<img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;cursor:pointer;margin:0 4px 4px 0"
+      onclick="this._idx=${i};_memoPhotos.splice(this._idx,1);this.remove()">`
+  ).join('');
   document.getElementById('memo-modal').classList.add('open');
 }
 function openMemoModal() { openTextMemo(); } // 後方互換
@@ -1891,7 +1905,20 @@ function closeMemoModal() {
 }
 
 function memoAddPhoto() {
-  document.getElementById('memo-photo-input').click();
+  // テキストメモモーダルを先に開く（写真はそこに追加される）
+  const card = allCards.find(c=>c.id===curDetailId);
+  if(!card) return;
+  document.getElementById('memo-textarea').value = card.memo||'';
+  _memoPhotos = (card.memoPhotos||[]).slice(); // 既存写真を引き継ぐ
+  // 既存写真をプレビューに表示
+  const photosEl = document.getElementById('memo-photos');
+  if(photosEl) photosEl.innerHTML = _memoPhotos.map((src,i)=>
+    `<img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;cursor:pointer"
+      onclick="_memoPhotos.splice(${i},1);this.remove()">`
+  ).join('');
+  document.getElementById('memo-modal').classList.add('open');
+  // 少し遅らせてファイルダイアログを開く
+  setTimeout(()=>document.getElementById('memo-photo-input').click(), 300);
 }
 
 function memoHandlePhoto(e) {
@@ -1912,10 +1939,8 @@ async function saveMemoModal() {
   const card = allCards.find(c=>c.id===curDetailId);
   if(!card) return;
   card.memo = document.getElementById('memo-textarea').value.trim();
-  // 写真があればmemoに付加（テキスト+画像）
-  if(_memoPhotos.length){
-    card.memoPhotos = _memoPhotos;
-  }
+  // 写真を保存（空配列でリセット含む）
+  card.memoPhotos = _memoPhotos.slice();
   // 保存
   const idx = allCards.findIndex(c=>c.id===curDetailId);
   if(idx>=0) allCards[idx]=card;
@@ -2275,7 +2300,8 @@ function openBulkModal() {
 function bulkHandleDrop(e) {
   e.preventDefault();
   document.getElementById('bulk-drop').classList.remove('drag');
-  const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+  const files = [...e.dataTransfer.files].filter(f =>
+    f.type.startsWith('image/') || f.type === 'application/pdf');
   bulkAddFiles(files);
 }
 
@@ -2960,6 +2986,7 @@ function enableSaveBtn(){
   const company=document.getElementById('f-company')?.value.trim();
   const name=document.getElementById('f-name')?.value.trim();
   const btn=document.getElementById('save-btn');
+  const btn2=document.getElementById('save-continue-btn');
   if(!btn)return;
   if(company&&name)btn.classList.remove('dis');else btn.classList.add('dis');
 }
@@ -3248,7 +3275,16 @@ async function saveCard(){
     imageData: localImg || allCards[idx]?.imageData || '',  // base64はローカルに保存
   };
   if(idx>=0)allCards[idx]=saved;else allCards.unshift(saved);
-  closeM('reg-modal');renderCards();buildOwChips();buildOrgChips();toast('保存しました ✓','ok');
+  if(typeof continueReg !== 'undefined' && continueReg) {
+    // 連続登録: フォームをリセットして次の名刺へ
+    continueReg = false;
+    toast('保存しました。続けて登録できます ✓','ok');
+    captImg=null; captImgBack=null; captImgS1Back=null;
+    toS1(); enableSaveBtn();
+    renderCards(); buildOwChips(); buildOrgChips();
+  } else {
+    closeM('reg-modal'); renderCards(); buildOwChips(); buildOrgChips(); toast('保存しました ✓','ok');
+  }
   btn.innerHTML='<span class="ms sm" style="color:white">save</span> 保存する';btn.classList.remove('dis');isEdit=false;
 }
 
@@ -3459,7 +3495,10 @@ async function syncFromCloud() {
       LS.s('cardsCache', JSON.stringify(freshCards));
       renderCards(); buildOwChips(); buildOrgChips(); updateMyStats();
     }
-    loadMyPageData();
+    // 最後に必ずマイページを最新データで更新
+    if(typeof loadMyPageData === 'function') {
+      setTimeout(loadMyPageData, 50);
+    }
   } catch(e) { console.warn('syncFromCloud:', e.message); }
 }
 
@@ -4104,7 +4143,7 @@ function initGoogleAuth() {
         setTimeout(() => initAppData(), 200);
         return;
       }
-    } catch(e) { localStorage.removeItem('meishi_user'); }
+    } catch(e) { console.warn('user parse error', e); /* localStorageは消さない */ }
   }
 
   // Google Client IDなければメール入力（HTML直接埋め込み済みなので何もしない）
