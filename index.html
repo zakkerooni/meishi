@@ -1413,13 +1413,43 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <span class="sd-lbl" id="sd-lbl">撮影・アップロード</span>
     </div>
     <div class="rs active" id="rs1">
+      <!-- 両面モードトグル -->
+      <div style="display:flex;align-items:center;justify-content:flex-end;padding:8px 4px 4px;gap:8px">
+        <span style="font-size:12px;color:var(--text3)">両面撮影</span>
+        <label style="position:relative;width:40px;height:22px;cursor:pointer">
+          <input type="checkbox" id="double-side-toggle" style="opacity:0;width:0;height:0;position:absolute"
+            onchange="onDoubleSideToggle()">
+          <span id="double-side-track" style="position:absolute;inset:0;border-radius:11px;background:var(--border2);transition:background .2s"></span>
+          <span id="double-side-thumb" style="position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s"></span>
+        </label>
+      </div>
+      <!-- 表面 -->
+      <div style="font-size:11px;color:var(--text3);padding:0 4px 4px;font-weight:600" id="cap-label-front">表面</div>
       <div id="cap-area" onclick="document.getElementById('fi').click()">
         <span class="ms" style="font-size:28px;color:var(--text3)">photo_camera</span>
         <span class="cap-hint">タップして画像を選択</span>
       </div>
+      <!-- 裏面（両面モード時のみ表示） -->
+      <div id="double-back-wrap" style="display:none;margin-top:10px">
+        <div style="font-size:11px;color:var(--text3);padding:0 4px 4px;font-weight:600">裏面</div>
+        <div id="cap-area-s1-back" style="background:var(--bg2);border:2px dashed var(--border2);border-radius:var(--r-lg);height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;position:relative;overflow:hidden"
+          onclick="document.getElementById('fi-s1-back').click()">
+          <span class="ms" style="font-size:24px;color:var(--text3)">add_a_photo</span>
+          <span style="font-size:12px;color:var(--text3)">裏面をタップして選択</span>
+        </div>
+        <input type="file" id="fi-s1-back" accept="image/*" style="display:none" onchange="handleFileS1Back(event)">
+        <input type="file" id="ci-s1-back" accept="image/*" capture="environment" style="display:none" onchange="handleFileS1Back(event)">
+      </div>
       <input type="file" id="fi" accept="image/*" onchange="handleFile(event)">
       <input type="file" id="ci" accept="image/*" capture="environment" onchange="handleFile(event)">
-      <div class="cr"><div class="cb" onclick="document.getElementById('ci').click()"><span class="ms sm" style="color:var(--accent)">photo_camera</span> カメラで撮影</div><div class="cb" onclick="document.getElementById('fi').click()"><span class="ms sm" style="color:var(--accent)">photo_library</span> ライブラリ</div></div>
+      <div class="cr">
+        <div class="cb" onclick="document.getElementById('ci').click()">
+          <span class="ms sm" style="color:var(--accent)">photo_camera</span> カメラで撮影
+        </div>
+        <div class="cb" onclick="document.getElementById('fi').click()">
+          <span class="ms sm" style="color:var(--accent)">photo_library</span> ライブラリ
+        </div>
+      </div>
       <div class="cr"><div class="cb dis" id="next1" onclick="toS2()">次へ → トリミング</div></div>
     </div>
     <div class="rs" id="rs2">
@@ -2706,7 +2736,17 @@ function editCard(){
 
 // ════════ REGISTER ════════
 function openRegModal(){
-  isEdit=false;captImg=null;curDetailId=null;
+  isEdit=false;captImg=null;captImgS1Back=null;captImgBack=null;curDetailId=null;
+  // 両面モードをオフにリセット
+  doubleSideMode=false;
+  const tog=document.getElementById('double-side-toggle');
+  if(tog) tog.checked=false;
+  const track=document.getElementById('double-side-track');
+  const thumb=document.getElementById('double-side-thumb');
+  if(track) track.style.background='var(--border2)';
+  if(thumb) thumb.style.left='3px';
+  const backWrap=document.getElementById('double-back-wrap');
+  if(backWrap) backWrap.style.display='none';
   const s={myOrg:LS.g('myOrg')||'miks',myName:LS.g('myName')};
   document.getElementById('f-org').value=s.myOrg;
   document.getElementById('f-owner').value=s.myName;
@@ -2721,8 +2761,67 @@ function setRStep(n){
   document.getElementById('sd-lbl').textContent=['撮影・アップロード','トリミング','情報入力・保存'][n-1];
 }
 
-function toS1(){captImg=null;document.getElementById('cap-area').innerHTML='<span class="ms" style="font-size:28px;color:var(--text3)">photo_camera</span><span class="cap-hint">タップして画像を選択</span>';document.getElementById('next1').classList.add('dis');setRStep(1)}
-function toS2(){if(!captImg)return;setRStep(2);initCrop()}
+
+// ════════ 両面撮影モード ════════
+let doubleSideMode = false;
+let captImgS1Back = null; // Step1で撮った裏面
+
+function onDoubleSideToggle() {
+  doubleSideMode = document.getElementById('double-side-toggle').checked;
+  // トグルの見た目を更新
+  const track = document.getElementById('double-side-track');
+  const thumb = document.getElementById('double-side-thumb');
+  if(track) track.style.background = doubleSideMode ? 'var(--accent)' : 'var(--border2)';
+  if(thumb) thumb.style.left = doubleSideMode ? '21px' : '3px';
+  // 裏面エリアの表示切り替え
+  const backWrap = document.getElementById('double-back-wrap');
+  if(backWrap) backWrap.style.display = doubleSideMode ? 'block' : 'none';
+  // 裏面リセット
+  captImgS1Back = null;
+  const s1Back = document.getElementById('cap-area-s1-back');
+  if(s1Back) s1Back.innerHTML = '<span class="ms" style="font-size:24px;color:var(--text3)">add_a_photo</span><span style="font-size:12px;color:var(--text3)">裏面をタップして選択</span>';
+}
+
+function handleFileS1Back(e) {
+  const file = e.target.files[0]; if(!file) return;
+  readAndProcess(file, null, false, (dataUrl) => {
+    captImgS1Back = dataUrl;
+    const area = document.getElementById('cap-area-s1-back');
+    if(area) {
+      area.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;';
+      area.appendChild(img);
+    }
+    toast('裏面を選択しました', 'ok');
+  });
+  e.target.value='';
+}
+
+function toS1(){
+  captImg=null; captImgS1Back=null;
+  document.getElementById('cap-area').innerHTML='<span class="ms" style="font-size:28px;color:var(--text3)">photo_camera</span><span class="cap-hint">タップして画像を選択</span>';
+  document.getElementById('next1').classList.add('dis');
+  setRStep(1);
+}
+function toS2(){
+  if(!captImg)return;
+  if(doubleSideMode && captImgS1Back) {
+    // 両面モードで裏面もある場合: トリミングスキップして直接Step3へ
+    // 裏面をcaptImgBackに設定
+    captImgBack = captImgS1Back;
+    const backArea = document.getElementById('cap-area-back');
+    if(backArea){
+      backArea.innerHTML='';
+      const img=document.createElement('img');
+      img.src=captImgBack;
+      img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;';
+      backArea.appendChild(img);
+    }
+  }
+  setRStep(2); initCrop();
+}
 function toS3(){setRStep(3);enableSaveBtn()}
 
 
