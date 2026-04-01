@@ -513,32 +513,39 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   z-index:10;
 }
 .d-nav-arrow{
-  position:absolute;top:50%;transform:translateY(-50%);
-  width:40px;height:40px;border-radius:50%;
-  background:rgba(255,255,255,.88);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  border:1px solid rgba(0,0,0,.08);cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 2px 16px rgba(0,0,0,.15);
-  transition:opacity .15s,transform .15s;z-index:10;
+  position:fixed;top:50%;
+  width:44px;height:44px;border-radius:50%;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(16px) saturate(200%);
+  -webkit-backdrop-filter:blur(16px) saturate(200%);
+  border:0.5px solid rgba(255,255,255,.7);
+  cursor:pointer;
+  display:none; /* JSで制御 */
+  align-items:center;justify-content:center;
+  box-shadow:3px 3px 10px rgba(0,0,0,.12),-1px -1px 4px rgba(255,255,255,.8);
+  transition:opacity .15s,box-shadow .15s;z-index:500;
 }
-.d-nav-prev{left:-56px}
-.d-nav-next{right:-56px}
-.d-nav-arrow:hover{opacity:.9;transform:translateY(-50%) scale(1.1)}
-@media(max-width:720px){.d-nav-arrow{display:none!important}}
-/* overlay を relative にして矢印の基準に */
+.d-nav-arrow:hover{box-shadow:4px 4px 14px rgba(0,0,0,.16),-2px -2px 6px rgba(255,255,255,.9)}
+.d-nav-prev{left:calc(50% - 280px);transform:translateY(-50%)}
+.d-nav-next{right:calc(50% - 280px);transform:translateY(-50%)}
+@media(max-width:800px){.d-nav-arrow{display:none!important}}
+/* detail-modal layout */
 #detail-modal{display:flex;align-items:flex-end;justify-content:center}
 #detail-modal.open{pointer-events:all}
 #detail-modal .sheet{position:relative;width:100%;max-width:480px}
 /* メモボタン（右下フローティング） */
 .d-memo-fab{
-  position:fixed;bottom:88px;right:16px;
-  width:52px;height:52px;border-radius:50%;
-  background:var(--bg);border:1px solid var(--border2);
-  box-shadow:var(--sh-md);cursor:pointer;
+  position:fixed;bottom:32px;right:20px;
+  width:54px;height:54px;border-radius:50%;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:0.5px solid rgba(0,0,0,.08);
+  box-shadow:3px 3px 12px rgba(0,0,0,.1),-1px -1px 4px rgba(255,255,255,.8);
+  cursor:pointer;
   display:none;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-  z-index:200;transition:transform .15s;
+  z-index:300;transition:transform .15s,box-shadow .15s;
 }
+.d-memo-fab:hover{box-shadow:4px 4px 16px rgba(0,0,0,.14)}
 .d-memo-fab.show{display:flex}
 .d-memo-fab:hover{transform:scale(1.08)}
 .d-memo-fab span{font-size:9px;color:var(--text3);font-weight:500}
@@ -806,10 +813,31 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 }
 /* 詳細シート: 半透明ガラス */
 #detail-modal .sheet{
-  background:rgba(250,250,250,.88)!important;
-  backdrop-filter:saturate(220%) blur(48px)!important;
-  -webkit-backdrop-filter:saturate(220%) blur(48px)!important;
-  border-top:0.5px solid rgba(255,255,255,.6)!important;
+  background:rgba(246,246,244,.96)!important;
+  backdrop-filter:saturate(160%) blur(32px)!important;
+  -webkit-backdrop-filter:saturate(160%) blur(32px)!important;
+  border-top:0.5px solid rgba(255,255,255,.8)!important;
+  box-shadow:0 -4px 40px rgba(0,0,0,.08),
+             inset 0 1px 0 rgba(255,255,255,.9)!important;
+}
+/* ニューモフィズム: 情報リスト */
+.d-info-list{
+  background:rgba(248,248,246,.95)!important;
+  box-shadow:inset 2px 2px 6px rgba(0,0,0,.04),
+             inset -1px -1px 4px rgba(255,255,255,.9),
+             0 1px 0 rgba(255,255,255,.6)!important;
+  border:none!important;
+  backdrop-filter:none!important;
+}
+/* 各行の区切り */
+.d-info-row{border-bottom:0.5px solid rgba(0,0,0,.05)!important}
+/* 会社ブロック */
+#d-company-block{
+  background:rgba(250,250,248,.8);
+  border-radius:12px;
+  margin:8px 16px 0;
+  padding:12px 16px!important;
+  box-shadow:2px 2px 8px rgba(0,0,0,.04),-1px -1px 4px rgba(255,255,255,.9);
 }
 /* アクションポップアップ */
 .action-popup{
@@ -1487,15 +1515,21 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     </div>
     <!-- 詳細情報リスト -->
     <!-- 会社名・部署・役職ブロック（名刺画像の下） -->
-    <div id="d-company-block" style="padding:14px 20px 10px">
+    <div id="d-company-block">
       <div id="d-co" class="d-co-name"></div>
       <div id="d-dept" style="font-size:12px;color:var(--text3);margin-top:2px"></div>
+      <div id="d-role-disp" style="font-size:12px;color:var(--text3);margin-top:1px"></div>
     </div>
     <div class="d-info-list" id="d-rows" style="margin-top:0"></div>
     <!-- メタ情報 -->
     <div class="d-meta" id="d-meta"></div>
     <!-- 編集ボタン -->
     <button class="d-edit" onclick="editCard()">名刺情報を編集</button>
+    <!-- メモFAB（詳細モーダル内・右下固定） -->
+    <div class="d-memo-fab" id="d-memo-fab" onclick="openMemoChoice()">
+      <span class="ms" style="font-size:22px;color:var(--accent)">edit_note</span>
+      <span>メモ</span>
+    </div>
     <!-- 画像拡大オーバーレイ -->
     <div class="img-zoom-overlay" id="img-zoom" onclick="closeImgZoom()">
       <div class="img-zoom-close" onclick="closeImgZoom()"><span class="ms sm" style="color:white">close</span></div>
@@ -1555,11 +1589,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   </div>
 </div>
 
-<!-- メモFAB -->
-<div class="d-memo-fab" id="d-memo-fab" onclick="openMemoChoice()">
-  <span class="ms" style="font-size:22px;color:var(--accent)">edit_note</span>
-  <span>メモ</span>
-</div>
+<!-- memo fab moved inside detail modal -->
 
 <!-- ── MEMBER MODAL ── -->
 <div class="overlay" id="member-modal">
@@ -1642,6 +1672,7 @@ function closeM(id){
   if(id==='detail-modal'){
     document.getElementById('d-memo-fab')?.classList.remove('show');
     closeActionPopup?.();
+    document.querySelectorAll('.d-nav-arrow').forEach(el=>el.style.display='none');
   }
 }
 document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open')}));
@@ -2445,7 +2476,9 @@ function openDetail(id){
   document.getElementById('d-name').textContent = c.name||'';
   document.getElementById('d-co').textContent = c.company||'';
   document.getElementById('d-dept').textContent = c.dept||'';
-  document.getElementById('d-role-sub').textContent = c.role||'';
+  document.getElementById('d-role-sub').textContent = ''; // ヘッダーには不要
+  const roleDisp = document.getElementById('d-role-disp');
+  if(roleDisp) roleDisp.textContent = c.role||'';
 
   // ── アクションボタン（ポップアップ経由） ──
   const dat = document.getElementById('da-t');
@@ -3666,9 +3699,22 @@ function loadMyPageData(){
   // APIキー個人設定
   document.getElementById('mp-gemini-key').value=LS.g('geminiKeyUser')||'';
   document.getElementById('mp-claude-key').value=LS.g('apiKeyUser')||'';
+  // アバター: myAvatar優先 → メンバーリストから補完
+  let avSrc = av;
+  if(!avSrc && currentUser) {
+    const email=(currentUser.email||'').toLowerCase();
+    const m=members.find(m=>(m.gEmail||m.email||'').toLowerCase()===email);
+    if(m?.avatar) { avSrc=m.avatar; LS.s('myAvatar',m.avatar); }
+  }
   const avEl=document.getElementById('my-avatar-display');
-  if(av){avEl.innerHTML=`<img src="${av}" alt="">`;document.getElementById('nav-my-ico').textContent=''}
-  else avEl.innerHTML='<span class="ms" style="font-size:32px;color:var(--text3)">person</span>';
+  if(avSrc){
+    avEl.innerHTML=`<img src="${avSrc}" alt="">`;
+    const navIco=document.getElementById('nav-my-ico');
+    if(navIco && navIco.tagName!=='IMG')
+      navIco.outerHTML=`<img id="nav-my-ico" src="${avSrc}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(255,255,255,.5)" alt="">`;
+  } else {
+    avEl.innerHTML='<span class="ms" style="font-size:32px;color:var(--text3)">person</span>';
+  }
   updateMyStats();
   initSwitches();
   updateOcrEngineStatus();
@@ -3691,11 +3737,22 @@ function handleMyAvatar(e){
   r.onload=ev=>{
     myAvData=ev.target.result;
     LS.s('myAvatar',myAvData);
+    // マイページアバター更新
     document.getElementById('my-avatar-display').innerHTML=`<img src="${myAvData}" alt="">`;
-    document.getElementById('nav-my-ico').innerHTML=`<img src="${myAvData}" style="width:24px;height:24px;border-radius:50%;object-fit:cover" alt="">`;
-    // アバターをプロフィールに即時反映してGAS同期
-    if(currentUser) { currentUser.profile = currentUser.profile||{}; currentUser.profile.avatar=myAvData; localStorage.setItem('meishi_user',JSON.stringify(currentUser)); }
-    toast('アバターを更新しました。プロフィール保存で同期されます', 'ok');
+    // ナビアイコン更新
+    const navIco=document.getElementById('nav-my-ico');
+    if(navIco) navIco.outerHTML=`<img id="nav-my-ico" src="${myAvData}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(255,255,255,.5)" alt="">`;
+    // currentUserのprofileにも反映
+    if(currentUser){
+      currentUser.profile=currentUser.profile||{};
+      currentUser.profile.avatar=myAvData;
+      localStorage.setItem('meishi_user',JSON.stringify(currentUser));
+      // メンバーリストのこのユーザーのアバターも更新
+      const email=(currentUser.email||'').toLowerCase();
+      const mi=members.findIndex(m=>(m.gEmail||m.email||'').toLowerCase()===email);
+      if(mi>=0){ members[mi].avatar=myAvData; saveMembers(); }
+    }
+    toast('アバターを更新しました。プロフィール保存で同期されます','ok');
   };r.readAsDataURL(f);e.target.value='';
 }
 
