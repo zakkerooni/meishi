@@ -677,8 +677,22 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div class="login-card">
     <div class="login-card-title">ログインしてください</div>
     <div class="login-card-desc">登録済みのGoogleアカウントでログインすると利用できます</div>
-    <!-- Google One Tap ボタン -->
-    <div id="g-signin-btn" style="display:flex;justify-content:center"></div>
+
+    <!-- メールアドレス入力フォーム（常時表示） -->
+    <div id="g-signin-btn" style="display:flex;justify-content:center">
+      <div style="width:100%">
+        <input type="email" id="login-email-input"
+          placeholder="Googleアカウントのメールアドレス"
+          autocomplete="email"
+          style="width:100%;padding:11px 14px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;margin-bottom:10px;font-family:inherit;color:#111;background:#fff;box-sizing:border-box;-webkit-appearance:none"
+          onkeydown="if(event.key==='Enter')loginWithEmail()">
+        <button onclick="loginWithEmail()"
+          style="width:100%;padding:12px;background:#1a56db;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
+          ログイン
+        </button>
+      </div>
+    </div>
+
     <div id="login-loading">
       <div style="width:20px;height:20px;border:2px solid #e0e0e0;border-top-color:#1a56db;border-radius:50%;animation:sp .8s linear infinite"></div>
       <span style="font-size:13px;color:#888">認証中...</span>
@@ -3147,11 +3161,9 @@ function initGoogleAuth() {
     } catch(e) {}
   }
 
-  // GASからメンバーリストを取得してゲストアクセスが可能か確認
-  // Google Client IDがなければ簡易メール入力モードにフォールバック
+  // Google Client IDなければメール入力（HTML直接埋め込み済みなので何もしない）
   if (!GOOGLE_CLIENT_ID) {
-    showEmailFallback();
-    return;
+    return; // フォームはHTMLに直接埋め込み済み
   }
 
   // Google One Tap / Sign In with Google
@@ -3327,7 +3339,7 @@ function confirmLogout() {
     document.getElementById('login-loading').classList.remove('show');
     document.getElementById('g-signin-btn').style.display = 'flex';
     // Google Client IDがなければメール入力フォームを再表示
-    if (!GOOGLE_CLIENT_ID) showEmailFallback();
+    // フォームはHTML直接埋め込みのため再描画不要
   }
 }
 
