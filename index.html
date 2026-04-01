@@ -10,7 +10,7 @@
 <title>名刺整理くん</title>
 <link rel="manifest" href="manifest.json">
 <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" async onload="pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onload="pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';window._pdfJsReady=true;"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
@@ -1689,7 +1689,7 @@ function closeM(id){
     document.querySelectorAll('.d-nav-arrow').forEach(el=>el.classList.remove('visible'));
   }
 }
-document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open')}));
+document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)closeM(el.id)}));
 
 // ════════ TOAST ════════
 let tTmr;
@@ -2260,13 +2260,20 @@ function bulkAddFiles(files) {
   if (files.length > remain) toast(`最大5枚まで。${remain}枚を追加しました`, '');
   toAdd.forEach(file => {
     if (file.type === 'application/pdf') {
-      // PDFをCanvas経由でJPEGに変換
-      pdfToImages(file).then(images => {
-        images.forEach(dataUrl => {
-          bulkFiles.push({ file, dataUrl, status: 'ready' });
+      toast('PDF変換中…', '');
+      pdfToImages(file).then(pairs => {
+        pairs.forEach(pair => {
+          // frontをプレビュー画像として使用、backは裏面として保存
+          bulkFiles.push({
+            file,
+            dataUrl: pair.front,
+            backDataUrl: pair.back || null,
+            status: 'ready'
+          });
           bulkRenderGrid();
         });
-      }).catch(()=>toast('PDF変換に失敗しました', 'err'));
+        toast(`PDF: ${pairs.length}ページを取り込みました`, 'ok');
+      }).catch(e => { console.error(e); toast('PDF変換に失敗しました。pdf.jsが読み込まれているか確認してください', 'err'); });
     } else {
       readAndProcess(file, null, false, (dataUrl) => {
         bulkFiles.push({ file, dataUrl, status: 'ready' });
@@ -2278,27 +2285,46 @@ function bulkAddFiles(files) {
 
 // PDF→画像変換（pdf.js不要・ブラウザAPIで対応）
 async function pdfToImages(file) {
-  const arrayBuffer = await file.arrayBuffer();
-  const blob = new Blob([arrayBuffer], {type:'application/pdf'});
-  const url = URL.createObjectURL(blob);
-  // pdf.jsがあれば使う。なければiframe経由でcanvasに描画
-  if (window.pdfjsLib) {
-    const pdf = await pdfjsLib.getDocument(url).promise;
-    const images = [];
-    for (let i=1; i<=Math.min(pdf.numPages, 5); i++) {
-      const page = await pdf.getPage(i);
-      const vp = page.getViewport({scale:2});
-      const canvas = document.createElement('canvas');
-      canvas.width=vp.width; canvas.height=vp.height;
-      await page.render({canvasContext:canvas.getContext('2d'), viewport:vp}).promise;
-      images.push(canvas.toDataURL('image/jpeg', 0.85));
-    }
-    URL.revokeObjectURL(url);
-    return images;
+  // pdf.jsのロード待ち（最大3秒）
+  if (!window.pdfjsLib) {
+    await new Promise((resolve, reject) => {
+      let tries = 0;
+      const t = setInterval(() => {
+        if (window.pdfjsLib) { clearInterval(t); resolve(); }
+        if (++tries > 30) { clearInterval(t); reject(new Error('pdf.js timeout')); }
+      }, 100);
+    });
   }
-  // フォールバック: 画像として扱えるページはdataURLをそのまま
-  toast('PDF.jsが未読み込みです。画像ファイルを使用してください', '');
-  return [];
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+  const totalPages = pdf.numPages;
+
+  // ページ→dataURLに変換
+  async function pageToDataUrl(pageNum) {
+    const page = await pdf.getPage(pageNum);
+    const vp = page.getViewport({scale: 2.0});
+    const canvas = document.createElement('canvas');
+    canvas.width  = vp.width;
+    canvas.height = vp.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({canvasContext: ctx, viewport: vp}).promise;
+    return canvas.toDataURL('image/jpeg', 0.88);
+  }
+
+  // 2ページ以内なら表裏としてペアにして1エントリ
+  // 3ページ以上なら各ページを別々のカードとして取り込む
+  const result = []; // [{front, back?}]
+  if (totalPages <= 2) {
+    const front = await pageToDataUrl(1);
+    const back  = totalPages === 2 ? await pageToDataUrl(2) : null;
+    result.push({ front, back });
+  } else {
+    for (let i = 1; i <= Math.min(totalPages, 10); i++) {
+      result.push({ front: await pageToDataUrl(i), back: null });
+    }
+  }
+  return result; // [{front:dataUrl, back:dataUrl|null}]
 }
 
 function bulkRenderGrid() {
@@ -2414,12 +2440,17 @@ async function bulkStartOCR() {
           url: r.url||'', memo: r.memo||'',
           org: myOrg, owner: myName,
           imageData: item.dataUrl,
+          imageData2: item.backDataUrl||'',  // PDF裏面 or null
           exchangedAt: '', createdAt: fmtDate(new Date().toISOString())
         };
         allCards.push(card);
         LS.s('cardsCache', JSON.stringify(allCards));
         if (gasUrl) {
-          try { await fetch(gasUrl, { method:'POST', body: JSON.stringify({ action:'add', card }) }); } catch(e) {}
+          if (gasUrl) { try {
+              const r2=await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:'add',card})});
+              const d2=await r2.json().catch(()=>({}));
+              if(!d2.ok) console.warn('GAS add failed:',d2);
+            } catch(e){console.warn('GAS add:',e.message);} }
         }
       }
 
@@ -3968,8 +3999,10 @@ function initGoogleAuth() {
       const user = JSON.parse(saved);
       if (user && user.email) {
         currentUser = user;
-        // ログイン状態でリロードした場合、スプシから最新プロフィールを非同期取得
-        onLoginSuccess(user, true); // isNew=trueで毎回最新を取得
+        // キャッシュから復元: UIを即表示してからバックグラウンドで同期
+        onLoginSuccess(user, false); // UIを即座に復元
+        // バックグラウンドでスプシから最新データを取得
+        setTimeout(() => initAppData(), 200);
         return;
       }
     } catch(e) { localStorage.removeItem('meishi_user'); }
