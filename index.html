@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="名刺帳">
 <meta name="theme-color" content="#ffffff">
-<title>スーパー名刺整理くん</title>
+<title>名刺整理くん</title>
 <link rel="manifest" href="manifest.json">
 <script src="https://accounts.google.com/gsi/client" async></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -993,6 +993,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <span class="ms nav-ico" style="font-size:22px">help_outline</span>
       <span class="nav-lbl">使い方</span>
     </button>
+    <!-- 中央の+ボタン -->
+    <button class="nav-item nav-add-btn" onclick="toggleFabMenu()">
+      <div class="nav-add-circle" id="nav-add-circle">
+        <span class="ms" style="font-size:26px;color:white" id="fab-icon">add</span>
+      </div>
+    </button>
     <button class="nav-item" data-page="settings" onclick="switchTab('settings',this)">
       <div class="nav-dot"></div>
       <span class="ms nav-ico" style="font-size:22px">settings</span>
@@ -1005,26 +1011,24 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     </button>
   </nav>
 
-  <!-- FAB -->
-  <div id="fab-wrap" style="position:fixed;bottom:76px;right:16px;z-index:40;display:flex;flex-direction:column;align-items:flex-end;gap:8px" id="fab-wrap">
-    <div id="fab-sub" style="display:none;flex-direction:column;align-items:flex-end;gap:8px;animation:fu .18s ease">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--text2);box-shadow:var(--sh)">まとめて取り込み（AI）</span>
-        <button onclick="openBulkModal()" style="width:44px;height:44px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(26,86,219,.4)">
-          <span class="ms" style="font-size:20px;color:white">photo_library</span>
-        </button>
+  <!-- fab-sub: ナビ中央ボタンから開くメニュー -->
+  <div id="fab-sub" style="display:none;position:fixed;bottom:76px;left:50%;transform:translateX(-50%);z-index:60;flex-direction:column;align-items:center;gap:8px;animation:fu .18s ease">
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--sh-md);min-width:200px">
+      <div onclick="openBulkModal()" style="display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;border-bottom:0.5px solid var(--border);transition:background .1s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+        <span class="ms sm" style="color:var(--accent)">photo_library</span>
+        <div>
+          <div style="font-size:13px;font-weight:500;color:var(--text)">まとめて取り込み</div>
+          <div style="font-size:11px;color:var(--text3)">複数枚をAIで一括認識</div>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--text2);box-shadow:var(--sh)">1枚ずつ登録</span>
-        <button onclick="openRegModal();closeFabMenu()" style="width:44px;height:44px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(26,86,219,.4)">
-          <span class="ms" style="font-size:20px;color:white">add</span>
-        </button>
+      <div onclick="openRegModal();closeFabMenu()" style="display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;transition:background .1s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+        <span class="ms sm" style="color:var(--accent)">add_card</span>
+        <div>
+          <div style="font-size:13px;font-weight:500;color:var(--text)">1枚ずつ登録</div>
+          <div style="font-size:11px;color:var(--text3)">撮影・トリミング・OCR</div>
+        </div>
       </div>
     </div>
-    <button id="fab" onclick="toggleFabMenu()" style="display:flex;align-items:center;gap:8px;padding:0 20px 0 14px;height:50px;border-radius:25px;background:var(--accent);border:none;cursor:pointer;color:white;font-size:14px;font-weight:500;font-family:var(--font);box-shadow:0 4px 20px rgba(26,86,219,.38);transition:box-shadow .15s,transform .1s">
-      <span class="ms" style="font-size:20px;color:white" id="fab-icon">add</span>
-      名刺を追加
-    </button>
   </div>
 </div>
 
@@ -1232,7 +1236,7 @@ let isAdmin=false;
 let csvRows=[],csvHeaders=[],csvMapping={};
 
 
-const APP_ICON = 'data:image/jpeg;base64,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';
+const APP_ICON = 'icon-192.png';
 const DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbwUXXxnKKVuXiLTJH0-O0lP7j8shTV5rT4Ag0uJcEPj6Xp8lCCHPwmQzfc_VW9MYbBW/exec';
 const LS={g:k=>localStorage.getItem(k)||(k==='gasUrl'?DEFAULT_GAS_URL:''),s:(k,v)=>localStorage.setItem(k,v)};
 const X=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1617,21 +1621,34 @@ async function guessKana(name) {
 }
 
 
-// ════════ FABメニュー ════════
+// ════════ 中央+ボタンメニュー ════════
 let fabOpen = false;
 function toggleFabMenu() {
   fabOpen = !fabOpen;
-  const sub = document.getElementById('fab-sub');
-  const ico = document.getElementById('fab-icon');
+  const sub  = document.getElementById('fab-sub');
+  const ico  = document.getElementById('fab-icon');
+  const btn  = document.querySelector('.nav-add-btn');
   if(sub) sub.style.display = fabOpen ? 'flex' : 'none';
   if(ico) ico.textContent = fabOpen ? 'close' : 'add';
+  if(btn) btn.classList.toggle('open', fabOpen);
+  // 外側タップで閉じる
+  if(fabOpen){
+    setTimeout(()=>{ document.addEventListener('click', closeFabMenuOutside, {once:true}); }, 10);
+  }
+}
+function closeFabMenuOutside(e) {
+  const sub = document.getElementById('fab-sub');
+  const btn = document.querySelector('.nav-add-btn');
+  if(sub && !sub.contains(e.target) && !btn?.contains(e.target)) closeFabMenu();
 }
 function closeFabMenu() {
   fabOpen = false;
   const sub = document.getElementById('fab-sub');
   const ico = document.getElementById('fab-icon');
+  const btn = document.querySelector('.nav-add-btn');
   if(sub) sub.style.display = 'none';
   if(ico) ico.textContent = 'add';
+  if(btn) btn.classList.remove('open');
 }
 
 // ════════ 一括取り込み ════════
