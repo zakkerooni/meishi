@@ -498,7 +498,67 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .sheet{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:640px;max-height:94dvh;overflow-y:auto;transform:translateY(20px);transition:transform .22s cubic-bezier(.32,1,.4,1)}
 .sheet::-webkit-scrollbar{display:none}
 .overlay.open .sheet{transform:translateY(0)}
-.sheet-handle{width:32px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 4px;cursor:pointer}
+.sheet-handle{width:32px;height:4px;background:var(--border2);border-radius:2px;margin:10px auto 0;cursor:pointer;flex-shrink:0}
+/* 詳細モーダルの閉じるボタン（右上） */
+.d-close-btn{
+  position:absolute;top:12px;right:14px;
+  width:30px;height:30px;border-radius:50%;
+  background:var(--bg3);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  z-index:10;
+}
+/* メモボタン（右下フローティング） */
+.d-memo-fab{
+  position:fixed;bottom:88px;right:16px;
+  width:52px;height:52px;border-radius:50%;
+  background:var(--bg);border:1px solid var(--border2);
+  box-shadow:var(--sh-md);cursor:pointer;
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  z-index:200;transition:transform .15s;
+}
+.d-memo-fab.show{display:flex}
+.d-memo-fab:hover{transform:scale(1.08)}
+.d-memo-fab span{font-size:9px;color:var(--text3);font-weight:500}
+/* アクションポップアップ */
+.action-popup-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9000;
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.action-popup-overlay.open{opacity:1;pointer-events:all}
+.action-popup{
+  background:var(--bg);border-radius:20px 20px 0 0;
+  width:100%;max-width:480px;padding:16px 0 32px;
+  transform:translateY(100%);transition:transform .25s cubic-bezier(.32,1,.23,1);
+}
+.action-popup-overlay.open .action-popup{transform:translateY(0)}
+.action-popup-title{
+  font-size:13px;color:var(--text3);text-align:center;
+  padding:8px 20px 16px;border-bottom:0.5px solid var(--border);
+  margin-bottom:8px;font-family:var(--mono);
+}
+.action-popup-btn{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 24px;cursor:pointer;transition:background .1s;
+  font-size:16px;color:var(--text);
+}
+.action-popup-btn:hover{background:var(--bg2)}
+.action-popup-btn.primary{color:var(--accent);font-weight:600}
+.action-popup-btn.cancel{color:var(--text3);font-size:14px;justify-content:center;border-top:0.5px solid var(--border);margin-top:8px}
+.action-popup-btn .ap-ico{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/* メモモーダル */
+.memo-modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9100;
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.memo-modal-overlay.open{opacity:1;pointer-events:all}
+.memo-modal{
+  background:var(--bg);border-radius:20px 20px 0 0;
+  width:100%;max-width:480px;padding-bottom:env(safe-area-inset-bottom);
+  transform:translateY(100%);transition:transform .25s cubic-bezier(.32,1,.23,1);
+}
+.memo-modal-overlay.open .memo-modal{transform:translateY(0)}
 .sheet-hd{display:flex;align-items:center;justify-content:space-between;padding:8px 20px 14px;border-bottom:1px solid var(--border)}
 .sheet-title{font-size:16px;font-weight:500}
 .sheet-x{width:28px;height:28px;border-radius:50%;background:var(--bg2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;color:var(--text2);transition:background .12s}
@@ -578,7 +638,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .d-card-img-wrap .d-img-switcher{position:absolute;bottom:24px;right:28px}
 .d-card-img-placeholder{margin:0 20px 4px;height:36px;background:transparent;border:none;border-radius:0;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--border2);font-size:11px;border-bottom:0.5px solid var(--border)}
 /* 会社情報バー */
-.d-company-bar{padding:14px 20px;border-top:0.5px solid var(--border);border-bottom:0.5px solid var(--border);background:var(--bg2)}
+.d-company-bar{display:none}
 .d-co-name{font-size:17px;font-weight:600;color:var(--text);letter-spacing:-.01em}
 /* 詳細情報リスト (Eight風) */
 .d-info-list{display:flex;flex-direction:column;margin:0 16px;border-radius:var(--r-lg);overflow:hidden;border:0.5px solid var(--border);background:var(--bg)}
@@ -602,7 +662,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .d-edit{width:calc(100% - 32px);margin:14px 16px 24px;padding:13px;background:rgba(255,79,66,.12);border:none;border-radius:var(--r-lg);color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);transition:opacity .12s;display:block;text-align:center}
 .d-edit:hover{opacity:.8}
 /* シートのmax-height調整 */
-#detail-modal .sheet{max-height:96dvh;border-radius:24px 24px 0 0}
+#detail-modal .sheet{max-height:96dvh;border-radius:24px 24px 0 0;position:relative;overflow-y:auto}
 .d-body{padding:0}
 
 /* Member modal */
@@ -1210,13 +1270,20 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 <!-- ── DETAIL MODAL ── -->
 <div class="overlay" id="detail-modal">
-  <div class="sheet">
-    <div class="sheet-handle" onclick="closeM('detail-modal')"><span class="ms sm">close</span></div>
-    <!-- Eight風ヘッダー: 名前 + アクションボタン -->
+  <div class="sheet" id="detail-sheet">
+    <!-- スワイプハンドル -->
+    <div class="sheet-handle" id="detail-swipe-handle"></div>
+    <!-- 右上閉じるボタン -->
+    <button class="d-close-btn" onclick="closeM('detail-modal')">
+      <span class="ms sm" style="color:var(--text3)">close</span>
+    </button>
+    <!-- ヘッダー: ふりがな・名前・会社・役職・アクションボタン -->
     <div class="d-eight-header">
       <div id="d-kana" class="d-eight-kana"></div>
       <div id="d-name" class="d-eight-name"></div>
-      <div id="d-role-sub" style="font-size:12px;color:var(--text3);margin-bottom:10px"></div>
+      <div id="d-co" class="d-co-name" style="margin-top:2px"></div>
+      <div id="d-dept" style="font-size:12px;color:var(--text3)"></div>
+      <div id="d-role-sub" style="font-size:12px;color:var(--text3);margin-bottom:14px"></div>
       <div class="d-eight-actions">
         <div class="d-act-circle" id="da-t">
           <span class="ms fill" style="font-size:20px;color:white">call</span>
@@ -1248,15 +1315,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <span class="ms sm" style="color:var(--border2)">photo_camera</span>
       <span style="font-size:10px;letter-spacing:0.04em;font-family:var(--mono)">NO IMAGE</span>
     </div>
-    <!-- 会社情報バー -->
-    <div class="d-company-bar">
-      <div>
-        <div id="d-co" class="d-co-name"></div>
-        <div id="d-dept" style="font-size:12px;color:var(--text3)"></div>
-      </div>
-    </div>
     <!-- 詳細情報リスト -->
-    <div class="d-info-list" id="d-rows"></div>
+    <div class="d-info-list" id="d-rows" style="margin-top:12px"></div>
     <!-- メタ情報 -->
     <div class="d-meta" id="d-meta"></div>
     <!-- 編集ボタン -->
@@ -1266,9 +1326,49 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="img-zoom-close" onclick="closeImgZoom()"><span class="ms sm" style="color:white">close</span></div>
       <img id="img-zoom-el" src="" alt="">
     </div>
-    <!-- 後方互換 -->
     <div id="d-img" style="display:none"><img></div>
   </div>
+</div>
+
+<!-- アクションポップアップ（電話・メール共通） -->
+<div class="action-popup-overlay" id="action-popup" onclick="closeActionPopup()">
+  <div class="action-popup" onclick="event.stopPropagation()">
+    <div class="action-popup-title" id="action-popup-title"></div>
+    <div id="action-popup-btns"></div>
+    <div class="action-popup-btn cancel" onclick="closeActionPopup()">キャンセル</div>
+  </div>
+</div>
+
+<!-- メモモーダル -->
+<div class="memo-modal-overlay" id="memo-modal" onclick="closeMemoModal()">
+  <div class="memo-modal" onclick="event.stopPropagation()">
+    <div style="padding:12px 16px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:15px;font-weight:600">メモ</div>
+      <button onclick="closeMemoModal()" style="border:none;background:none;cursor:pointer;padding:4px">
+        <span class="ms sm" style="color:var(--text3)">close</span>
+      </button>
+    </div>
+    <div style="padding:12px 16px;display:flex;gap:8px;border-bottom:0.5px solid var(--border)">
+      <button onclick="memoAddPhoto()" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--r);background:var(--bg2);cursor:pointer;font-family:var(--font);font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px">
+        <span class="ms sm" style="color:var(--accent)">add_a_photo</span>写真を追加
+      </button>
+      <input type="file" id="memo-photo-input" accept="image/*" style="display:none" onchange="memoHandlePhoto(event)">
+    </div>
+    <textarea id="memo-textarea" placeholder="メモを入力…"
+      style="width:100%;min-height:120px;border:none;padding:14px 16px;font-size:14px;font-family:var(--font);resize:none;outline:none;color:var(--text);background:var(--bg);box-sizing:border-box;line-height:1.6"></textarea>
+    <div id="memo-photos" style="display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 8px"></div>
+    <div style="padding:8px 16px 24px">
+      <button onclick="saveMemoModal()" style="width:100%;padding:12px;background:var(--accent);color:white;border:none;border-radius:var(--r-lg);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font)">
+        保存する
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- メモFAB -->
+<div class="d-memo-fab" id="d-memo-fab" onclick="openMemoModal()">
+  <span class="ms" style="font-size:22px;color:var(--accent)">edit_note</span>
+  <span>メモ</span>
 </div>
 
 <!-- ── MEMBER MODAL ── -->
@@ -1346,7 +1446,14 @@ function switchTab(page,el){
 
 // ════════ MODAL ════════
 function openM(id){document.getElementById(id).classList.add('open')}
-function closeM(id){document.getElementById(id).classList.remove('open')}
+function closeM(id){
+  document.getElementById(id)?.classList.remove('open');
+  document.body.style.overflow='';
+  if(id==='detail-modal'){
+    document.getElementById('d-memo-fab')?.classList.remove('show');
+    closeActionPopup?.();
+  }
+}
 document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open')}));
 
 // ════════ TOAST ════════
@@ -1410,6 +1517,129 @@ function demo(){return[
   {id:'4',company:'AIソリューションズ',dept:'研究開発室',name:'高橋 美紀',role:'主任研究員',email:'miki@ai-sol.co.jp',tel:'045-678-9012',mobile:'',addr:'神奈川県横浜市西区3-3-3',url:'https://ai-sol.co.jp',memo:'AI連携予定',org:'linnas',owner:'中村',imageUrl:'',createdAt:'2026-03-10'},
   {id:'5',company:'東京フィンテック',dept:'企画部',name:'中村 健一',role:'マネージャー',email:'kenichi@tft.co.jp',tel:'03-4567-8901',mobile:'',addr:'東京都港区6-10-1',url:'',memo:'',org:'miks',owner:'佐藤',imageUrl:'',createdAt:'2026-03-08'},
 ]}
+
+
+
+// ════════ 詳細モーダル スワイプで閉じる ════════
+(function(){
+  let startY=0,dragging=false;
+  document.addEventListener('touchstart',e=>{
+    const sheet=document.getElementById('detail-sheet');
+    if(!sheet) return;
+    const modal=document.getElementById('detail-modal');
+    if(!modal.classList.contains('open')) return;
+    startY=e.touches[0].clientY;dragging=true;
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!dragging) return;
+    const dy=e.touches[0].clientY-startY;
+    const sheet=document.getElementById('detail-sheet');
+    if(!sheet) return;
+    if(dy>0) sheet.style.transform=`translateY(${dy}px)`;
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(!dragging) return;
+    dragging=false;
+    const dy=e.changedTouches[0].clientY-startY;
+    const sheet=document.getElementById('detail-sheet');
+    if(!sheet) return;
+    if(dy>120){ sheet.style.transform=''; closeM('detail-modal'); }
+    else{ sheet.style.transition='transform .25s'; sheet.style.transform=''; setTimeout(()=>sheet.style.transition='',260); }
+  });
+})();
+
+// ════════ アクションポップアップ ════════
+function showTelPopup(tel, mobile) {
+  const title = document.getElementById('action-popup-title');
+  const btns  = document.getElementById('action-popup-btns');
+  const numbers = [tel, mobile].filter(Boolean);
+  title.textContent = numbers.join(' / ') + ' に発信';
+  btns.innerHTML = numbers.map(num => `
+    <div class="action-popup-btn primary" onclick="closeActionPopup();setTimeout(()=>location.href='tel:${num}',100)">
+      <div class="ap-ico" style="background:rgba(255,79,66,.12)">
+        <span class="ms sm" style="color:var(--accent)">call</span>
+      </div>
+      ${num} に発信
+    </div>`).join('');
+  document.getElementById('action-popup').classList.add('open');
+}
+
+function showMailPopup(email) {
+  const title = document.getElementById('action-popup-title');
+  const btns  = document.getElementById('action-popup-btns');
+  title.textContent = email;
+  btns.innerHTML = `
+    <div class="action-popup-btn" onclick="navigator.clipboard.writeText('${email}').then(()=>{closeActionPopup();toast('メールアドレスをコピーしました','ok')})">
+      <div class="ap-ico" style="background:var(--bg2)">
+        <span class="ms sm" style="color:var(--text2)">content_copy</span>
+      </div>
+      アドレスをコピー
+    </div>
+    <div class="action-popup-btn primary" onclick="closeActionPopup();setTimeout(()=>window.open('https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(email)}','_blank'),100)">
+      <div class="ap-ico" style="background:rgba(255,79,66,.12)">
+        <span class="ms sm" style="color:var(--accent)">send</span>
+      </div>
+      Gmailで送信
+    </div>`;
+  document.getElementById('action-popup').classList.add('open');
+}
+
+function closeActionPopup() {
+  document.getElementById('action-popup').classList.remove('open');
+}
+
+// ════════ メモモーダル ════════
+let _memoPhotos = [];
+
+function openMemoModal() {
+  const card = allCards.find(c=>c.id===curDetailId);
+  if(!card) return;
+  document.getElementById('memo-textarea').value = card.memo||'';
+  _memoPhotos = [];
+  document.getElementById('memo-photos').innerHTML = '';
+  document.getElementById('memo-modal').classList.add('open');
+}
+
+function closeMemoModal() {
+  document.getElementById('memo-modal').classList.remove('open');
+}
+
+function memoAddPhoto() {
+  document.getElementById('memo-photo-input').click();
+}
+
+function memoHandlePhoto(e) {
+  const file = e.target.files[0]; if(!file) return;
+  readAndProcess(file, null, false, (dataUrl) => {
+    _memoPhotos.push(dataUrl);
+    const photos = document.getElementById('memo-photos');
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.style.cssText='width:72px;height:72px;object-fit:cover;border-radius:8px;cursor:pointer';
+    img.onclick = ()=>{ _memoPhotos=_memoPhotos.filter(p=>p!==dataUrl); img.remove(); };
+    photos.appendChild(img);
+  });
+  e.target.value='';
+}
+
+async function saveMemoModal() {
+  const card = allCards.find(c=>c.id===curDetailId);
+  if(!card) return;
+  card.memo = document.getElementById('memo-textarea').value.trim();
+  // 写真があればmemoに付加（テキスト+画像）
+  if(_memoPhotos.length){
+    card.memoPhotos = _memoPhotos;
+  }
+  // 保存
+  const idx = allCards.findIndex(c=>c.id===curDetailId);
+  if(idx>=0) allCards[idx]=card;
+  LS.s('cardsCache',JSON.stringify(allCards));
+  const gasUrl=LS.g('gasUrl');
+  if(gasUrl){try{await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:'update',card})})}catch{}}
+  closeMemoModal();
+  toast('メモを保存しました ✓','ok');
+  renderCards();
+}
 
 // ════════ RENDER CARDS ════════
 function setF(v,el){curF=v;document.querySelectorAll('.chip[data-f]').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderCards()}
@@ -1977,23 +2207,23 @@ function openDetail(id){
   const card=allCards.find(x=>x.id===id);if(!card)return;
   const c=card;
   curDetailId=id;
-  // ── ヘッダー ──
+
+  // ── ヘッダー（会社名・役職をヘッダー内に統合） ──
   document.getElementById('d-kana').textContent = c.kana||c.nameKana||'';
   document.getElementById('d-name').textContent = c.name||'';
-  document.getElementById('d-role-sub').textContent = c.role||'';
   document.getElementById('d-co').textContent = c.company||'';
   document.getElementById('d-dept').textContent = c.dept||'';
+  document.getElementById('d-role-sub').textContent = c.role||'';
 
-  // ── アクションボタン ──
+  // ── アクションボタン（ポップアップ経由） ──
   const dat = document.getElementById('da-t');
   const dam = document.getElementById('da-m');
   const damap = document.getElementById('da-map');
   const dau = document.getElementById('da-u');
-  dat.onclick = ()=>c.tel&&(location.href='tel:'+c.tel);
-  dam.onclick = ()=>c.email&&(location.href='mailto:'+c.email);
+  dat.onclick = ()=>c.tel&&showTelPopup(c.tel, c.mobile);
+  dam.onclick = ()=>c.email&&showMailPopup(c.email);
   damap.onclick = ()=>c.addr&&window.open('https://maps.google.com/?q='+encodeURIComponent(c.addr));
   dau.onclick = ()=>c.url&&window.open(c.url);
-  // アクティブ/非アクティブ
   dat.style.opacity = c.tel?'1':'0.35'; dat.style.pointerEvents = c.tel?'':'none';
   dam.style.opacity = c.email?'1':'0.35'; dam.style.pointerEvents = c.email?'':'none';
   damap.style.opacity = c.addr?'1':'0.35'; damap.style.pointerEvents = c.addr?'':'none';
@@ -2009,47 +2239,41 @@ function openDetail(id){
   if(frontSrc){
     document.getElementById('d-img-el').src = frontSrc;
     document.getElementById('img-zoom-el').src = frontSrc;
-    imgWrap.style.display='';
-    ph.style.display='none';
-    if(backSrc){ switcher.classList.add('show'); switcher.querySelectorAll('.d-side-btn').forEach((b,i)=>b.classList.toggle('active',i===0)); }
+    imgWrap.style.display='';ph.style.display='none';
+    if(backSrc){switcher.classList.add('show');switcher.querySelectorAll('.d-side-btn').forEach((b,i)=>b.classList.toggle('active',i===0));}
     else switcher.classList.remove('show');
   } else {
-    imgWrap.style.display='none';
-    ph.style.display='flex';
-    switcher.classList.remove('show');  // 画像なし→表裏ボタン非表示
+    imgWrap.style.display='none';ph.style.display='flex';
+    switcher.classList.remove('show');
   }
 
-  // ── 情報リスト (Eight風) ──
+  // ── 情報リスト: 住所は郵便番号+住所を1行で ──
   const addrFull = c.addr||'';
-  const zipM = addrFull.match(/^(〒\S+)\s*(.*)/);
-  const zipDisp = zipM?zipM[1]:'';
-  const addrDisp = zipM?zipM[2]:addrFull;
-
   const infoRows = [
-    c.tel   && {ico:'<span class="ms sm" style="color:var(--accent)">call</span>', label:'電話番号', val:c.tel,   href:'tel:'+c.tel,          tag:''},
-    c.mobile&& {ico:'<span class="ms sm" style="color:var(--accent)">smartphone</span>', label:'携帯番号', val:c.mobile, href:'tel:'+c.mobile, tag:''},
-    c.email && {ico:'<span class="ms sm">mail</span>', val:c.email, href:'mailto:'+c.email,     tag:''},
-    zipDisp && {ico:'<span class="ms sm" style="color:var(--text3)">markunread_mailbox</span>', label:'郵便番号', val:zipDisp, href:null, tag:''},
-    addrDisp&& {ico:'<span class="ms sm" style="color:var(--text3)">location_on</span>', label:'住所', val:addrDisp, href:'https://maps.google.com/?q='+encodeURIComponent(c.addr), tag:''},
-    c.memo  && {ico:'<span class="ms sm">notes</span>', val:c.memo,  href:null,                   tag:'', plain:true},
-    c.url   && {ico:'<span class="ms sm">language</span>', val:c.url,   href:c.url,                 tag:'', ext:true},
+    c.tel   && {ico:'call',    color:'var(--accent)', label:'電話番号', val:c.tel,    action:()=>showTelPopup(c.tel,c.mobile)},
+    c.mobile&& {ico:'smartphone',color:'var(--accent)',label:'携帯番号', val:c.mobile, action:()=>showTelPopup(c.mobile,null)},
+    c.email && {ico:'mail',    color:'var(--accent)', label:'メール',   val:c.email,  action:()=>showMailPopup(c.email)},
+    addrFull&& {ico:'location_on',color:'var(--text3)',label:'住所',    val:addrFull, action:()=>window.open('https://maps.google.com/?q='+encodeURIComponent(addrFull))},
+    c.url   && {ico:'language',color:'var(--accent)', label:'ウェブサイト',val:c.url, action:()=>window.open(c.url), ext:true},
   ].filter(Boolean);
 
-  document.getElementById('d-rows').innerHTML = infoRows.map(row => {
-    const clickable = row.href;
-    const valHtml = clickable
-      ? `<a class="d-info-val link" href="${row.href}"${row.ext?' target="_blank"':''}
-           style="text-decoration:none">${X(row.val)}</a>`
-      : `<span class="d-info-val">${X(row.val)}</span>`;
-    return `<div class="d-info-row${clickable?'':' no-action'}">
-      <span class="d-info-ico">${row.ico}</span>
+  document.getElementById('d-rows').innerHTML = infoRows.map((row,ri) => {
+    const ico = `<span class="ms sm" style="color:${row.color}">${row.ico}</span>`;
+    return `<div class="d-info-row" onclick="window._detailActions&&window._detailActions[${ri}]&&window._detailActions[${ri}]()">
+      <span class="d-info-ico">${ico}</span>
       <div class="d-info-content">
-        ${row.label?`<div class="d-info-label">${row.label}</div>`:''}
-        ${valHtml}
+        <div class="d-info-label">${row.label}</div>
+        <span class="d-info-val">${X(row.val)}</span>
       </div>
-      ${row.tag?`<span class="d-info-tag">${row.tag}</span>`:''}
+      <span class="ms sm" style="color:var(--border2)">chevron_right</span>
     </div>`;
   }).join('');
+  // アクションをwindow変数に保存（テンプレートリテラル内でclosure使えないため）
+  window._detailActions = infoRows.map(row => row.action);
+
+  // メモFABの表示制御
+  const memoFab = document.getElementById('d-memo-fab');
+  if(memoFab) memoFab.classList.add('show');
   document.getElementById('d-meta').innerHTML=`
     <div class="d-mr"><span>組織</span><span>${getOrgName(c.org)}</span></div>
     <div class="d-mr"><span>受取担当者</span><span>${c.owner||'—'}</span></div>
