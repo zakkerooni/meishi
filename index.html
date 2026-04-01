@@ -520,11 +520,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   -webkit-backdrop-filter:blur(16px) saturate(200%);
   border:0.5px solid rgba(255,255,255,.7);
   cursor:pointer;
-  display:none; /* JSで制御 */
-  align-items:center;justify-content:center;
+  /* 常にdisplay:flex、visibility:hiddenで制御 */
+  display:flex;align-items:center;justify-content:center;
+  visibility:hidden;opacity:0;
   box-shadow:3px 3px 10px rgba(0,0,0,.12),-1px -1px 4px rgba(255,255,255,.8);
-  transition:opacity .15s,box-shadow .15s;z-index:500;
+  transition:opacity .2s,visibility .2s,box-shadow .15s;z-index:500;
+  pointer-events:none;
 }
+.d-nav-arrow.visible{visibility:visible;opacity:1;pointer-events:all}
 .d-nav-arrow:hover{box-shadow:4px 4px 14px rgba(0,0,0,.16),-2px -2px 6px rgba(255,255,255,.9)}
 .d-nav-prev{left:calc(50% - 280px);transform:translateY(-50%)}
 .d-nav-next{right:calc(50% - 280px);transform:translateY(-50%)}
@@ -546,7 +549,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   z-index:300;transition:transform .15s,box-shadow .15s;
 }
 .d-memo-fab:hover{box-shadow:4px 4px 16px rgba(0,0,0,.14)}
-.d-memo-fab.show{display:flex}
+.d-memo-fab.show{display:none} /* メモ欄に統合 */
 .d-memo-fab:hover{transform:scale(1.08)}
 .d-memo-fab span{font-size:9px;color:var(--text3);font-weight:500}
 /* アクションポップアップ */
@@ -1471,10 +1474,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <span class="ms sm" style="color:var(--text3)">close</span>
     </button>
     <!-- デスクトップ用 左右矢印ナビ -->
-    <button class="d-nav-arrow d-nav-prev desktop-only" onclick="navigateDetail(-1)" title="前のカード">
+    <button class="d-nav-arrow d-nav-prev" onclick="navigateDetail(-1)" title="前のカード">
       <span class="ms" style="font-size:22px;color:var(--text2)">chevron_left</span>
     </button>
-    <button class="d-nav-arrow d-nav-next desktop-only" onclick="navigateDetail(1)" title="次のカード">
+    <button class="d-nav-arrow d-nav-next" onclick="navigateDetail(1)" title="次のカード">
       <span class="ms" style="font-size:22px;color:var(--text2)">chevron_right</span>
     </button>
     <!-- ヘッダー: ふりがな・名前・会社・役職・アクションボタン -->
@@ -1525,11 +1528,20 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="d-meta" id="d-meta"></div>
     <!-- 編集ボタン -->
     <button class="d-edit" onclick="editCard()">名刺情報を編集</button>
-    <!-- メモFAB（詳細モーダル内・右下固定） -->
-    <div class="d-memo-fab" id="d-memo-fab" onclick="openMemoChoice()">
-      <span class="ms" style="font-size:22px;color:var(--accent)">edit_note</span>
-      <span>メモ</span>
+    <!-- メモ表示欄（各カードに紐付き） -->
+    <div id="d-memo-block" style="margin:0 16px 24px;border-radius:14px;overflow:hidden;background:rgba(248,248,246,.95);box-shadow:inset 2px 2px 6px rgba(0,0,0,.04),inset -1px -1px 4px rgba(255,255,255,.9)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px 8px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text3)">
+          <span class="ms" style="font-size:16px;color:var(--text3)">edit_note</span>メモ
+        </div>
+        <button onclick="openMemoChoice()" style="border:none;background:none;cursor:pointer;padding:4px 8px;border-radius:8px;font-size:12px;color:var(--accent);font-family:var(--font);display:flex;align-items:center;gap:4px">
+          <span class="ms" style="font-size:14px;color:var(--accent)">add</span>追加
+        </button>
+      </div>
+      <div id="d-memo-text" style="padding:0 16px 12px;font-size:14px;color:var(--text);line-height:1.7;min-height:32px;white-space:pre-wrap"></div>
+      <div id="d-memo-photos" style="display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 12px"></div>
     </div>
+    <!-- メモFABは削除（上の欄から操作） -->
     <!-- 画像拡大オーバーレイ -->
     <div class="img-zoom-overlay" id="img-zoom" onclick="closeImgZoom()">
       <div class="img-zoom-close" onclick="closeImgZoom()"><span class="ms sm" style="color:white">close</span></div>
@@ -1665,14 +1677,20 @@ function switchTab(page,el){
 }
 
 // ════════ MODAL ════════
-function openM(id){document.getElementById(id).classList.add('open')}
+function openM(id){
+  document.getElementById(id).classList.add('open');
+  if(id==='detail-modal'){
+    document.body.style.overflow='hidden';
+    document.querySelectorAll('.d-nav-arrow').forEach(el=>el.classList.add('visible'));
+  }
+}
 function closeM(id){
   document.getElementById(id)?.classList.remove('open');
   document.body.style.overflow='';
   if(id==='detail-modal'){
     document.getElementById('d-memo-fab')?.classList.remove('show');
     closeActionPopup?.();
-    document.querySelectorAll('.d-nav-arrow').forEach(el=>el.style.display='none');
+    document.querySelectorAll('.d-nav-arrow').forEach(el=>el.classList.remove('visible'));
   }
 }
 document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open')}));
@@ -1762,9 +1780,22 @@ function demo(){return[
     if(dir==='y'&&dy>120){ sheet.style.transform=''; closeM('detail-modal'); return; }
     if(dir==='x'&&Math.abs(dx)>80){
       const d=dx<0?1:-1;
-      sheet.style.transition='transform .2s';
-      sheet.style.transform=`translateX(${d*-120}%)`;
-      setTimeout(()=>{ navigateDetail(d); sheet.style.transition=''; sheet.style.transform=''; },180);
+      const nextIdx=fCards.findIndex(c=>c.id===curDetailId)+(d);
+      const hasNext=fCards[nextIdx];
+      if(!hasNext){ sheet.style.transition='transform .3s'; sheet.style.transform=''; setTimeout(()=>sheet.style.transition='',310); return; }
+      // 現カードをスライドアウト
+      sheet.style.transition='transform .22s cubic-bezier(.4,0,.2,1)';
+      sheet.style.transform=`translateX(${d*-105}%)`;
+      setTimeout(()=>{
+        navigateDetail(d);
+        // 次カードを反対側からスライドイン
+        sheet.style.transition='none';
+        sheet.style.transform=`translateX(${d*20}%)`;
+        requestAnimationFrame(()=>{
+          sheet.style.transition='transform .24s cubic-bezier(.34,1.3,.64,1)';
+          sheet.style.transform='';
+        });
+      },200);
       return;
     }
     sheet.style.transition='transform .25s';
@@ -1869,6 +1900,9 @@ async function saveMemoModal() {
   const gasUrl=LS.g('gasUrl');
   if(gasUrl){try{await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:'update',card})})}catch{}}
   closeMemoModal();
+  // メモ表示欄を即時更新
+  const mt=document.getElementById('d-memo-text');
+  if(mt) mt.textContent=card.memo||'';
   toast('メモを保存しました ✓','ok');
   renderCards();
 }
@@ -2545,8 +2579,24 @@ function openDetail(id){
     ${c.exchangedAt?`<div class="d-mr"><span>名刺交換日</span><span>${fmtDate(c.exchangedAt)}</span></div>`:''}
     <div class="d-mr"><span>登録日</span><span>${fmtDate(c.createdAt)}</span></div>
   `;
+  // メモ欄を更新
+  const memoText = document.getElementById('d-memo-text');
+  const memoPhotos = document.getElementById('d-memo-photos');
+  if(memoText) memoText.textContent = c.memo||'';
+  if(memoPhotos){
+    memoPhotos.innerHTML = (c.memoPhotos||[]).map(src=>
+      `<img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;cursor:pointer" onclick="openImgZoom('${src}')">`
+    ).join('');
+  }
+  // ── メモ欄を更新 ──
+  const _mt=document.getElementById('d-memo-text');
+  const _mp=document.getElementById('d-memo-photos');
+  if(_mt) _mt.textContent=c.memo||'';
+  if(_mp) _mp.innerHTML=(c.memoPhotos||[]).map(src=>
+    `<img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;cursor:pointer" onclick="openImgZoom('${src}')">`
+  ).join('');
+
   openM('detail-modal');
-  // 画像を正しい向きで読込（遅延でシート描画後に）
   if(frontSrc){ setTimeout(()=>{ document.getElementById('d-img-el').src=frontSrc+'#t='+(Date.now()); },50); }
 }
 
@@ -2559,9 +2609,10 @@ function switchImgSide(idx, btn) {
   document.querySelectorAll('.d-side-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
 }
 
-function openImgZoom(){
-  const src=document.getElementById('d-img-el').src;
-  if(!src)return;
+function openImgZoom(src){
+  const s=src||document.getElementById('d-img-el')?.src;
+  if(!s)return;
+  document.getElementById('img-zoom-el').src=s;
   document.getElementById('img-zoom').classList.add('open');
 }
 function closeImgZoom(){
