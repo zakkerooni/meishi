@@ -17,7 +17,8 @@ const SH_CONFIG  = 'アプリ設定';
 const CARD_HEADERS = [
   'id','company','dept','name','role','email',
   'tel','mobile','addr','url','memo',
-  'org','owner','imageUrl','createdAt'
+  'org','owner','imageUrl','createdAt',
+  'kana','exchangedAt','imageUrl2','memoPhotos'
 ];
 
 const MEMBER_HEADERS = [
@@ -63,18 +64,36 @@ function doPost(e) {
 
     // ── 名刺 CRUD ──
     if (action === 'addCard') {
-      const imageUrl = body.card.imageData
-        ? uploadImage(body.card.id, body.card.imageData) : '';
-      addCard({ ...body.card, imageUrl, imageData: undefined });
-      return jsonRes({ ok:true, id: body.card.id, imageUrl });
+      const card = body.card;
+      // 表面画像をDriveにアップロード
+      const imageUrl = card.imageData
+        ? uploadImage(card.id + '_front', card.imageData) : '';
+      // 裏面画像をDriveにアップロード
+      const imageUrl2 = card.imageData2
+        ? uploadImage(card.id + '_back', card.imageData2) : '';
+      // メモ写真（配列）をDriveにアップロード
+      const memoUrls = uploadMemoPhotos(card.id, card.memoPhotos || []);
+      addCard({ ...card, imageUrl, imageUrl2, memoPhotos: JSON.stringify(memoUrls),
+                imageData: undefined, imageData2: undefined });
+      return jsonRes({ ok:true, id: card.id, imageUrl, imageUrl2, memoPhotos: memoUrls });
     }
     if (action === 'updateCard') {
-      const existing = getCardById(body.card.id);
-      const imageUrl = body.card.imageData
-        ? uploadImage(body.card.id, body.card.imageData)
-        : (existing?.imageUrl || '');
-      updateCard({ ...body.card, imageUrl, imageData: undefined });
-      return jsonRes({ ok:true, imageUrl });
+      const card = body.card;
+      const existing = getCardById(card.id);
+      const imageUrl = card.imageData
+        ? uploadImage(card.id + '_front', card.imageData)
+        : (existing?.imageUrl || card.imageUrl || '');
+      const imageUrl2 = card.imageData2
+        ? uploadImage(card.id + '_back', card.imageData2)
+        : (existing?.imageUrl2 || card.imageUrl2 || '');
+      // メモ写真: base64があればアップロード、URLはそのまま保持
+      let memoPhotos = card.memoPhotos || [];
+      if (Array.isArray(memoPhotos)) {
+        memoPhotos = uploadMemoPhotos(card.id, memoPhotos);
+      }
+      updateCard({ ...card, imageUrl, imageUrl2, memoPhotos: JSON.stringify(memoPhotos),
+                   imageData: undefined, imageData2: undefined });
+      return jsonRes({ ok:true, imageUrl, imageUrl2, memoPhotos });
     }
     if (action === 'deleteCard') {
       deleteCard(body.id);
@@ -133,6 +152,11 @@ function doPost(e) {
     if (action === 'add')    return doPost({ postData:{ contents: JSON.stringify({...body, action:'addCard'}) }});
     if (action === 'update') return doPost({ postData:{ contents: JSON.stringify({...body, action:'updateCard'}) }});
     if (action === 'delete') return doPost({ postData:{ contents: JSON.stringify({...body, action:'deleteCard'}) }});
+    // メモ写真単体アップロード
+    if (action === 'uploadMemoPhoto') {
+      const url = uploadImage('memo_' + body.cardId + '_' + Date.now(), body.dataUrl);
+      return jsonRes({ ok:true, url });
+    }
 
     return jsonRes({ ok:false, error:'unknown action: '+action });
   } catch(err) {
@@ -213,7 +237,14 @@ function getCards(q) {
   const rows = data.slice(1)
     .map(row => {
       const obj = {};
-      hdrs.forEach((h, i) => obj[h] = String(row[i] ?? ''));
+      hdrs.forEach((h, i) => {
+        const val = String(row[i] ?? '');
+        if (h === 'memoPhotos' && val) {
+          try { obj[h] = JSON.parse(val); } catch(e) { obj[h] = []; }
+        } else {
+          obj[h] = val;
+        }
+      });
       return obj;
     })
     .filter(r => r.id);
@@ -272,7 +303,14 @@ function getMembers() {
   return data.slice(1)
     .map(row => {
       const obj = {};
-      hdrs.forEach((h, i) => obj[h] = String(row[i] ?? ''));
+      hdrs.forEach((h, i) => {
+        const val = String(row[i] ?? '');
+        if (h === 'memoPhotos' && val) {
+          try { obj[h] = JSON.parse(val); } catch(e) { obj[h] = []; }
+        } else {
+          obj[h] = val;
+        }
+      });
       return obj;
     })
     .filter(r => r.id);
@@ -369,6 +407,23 @@ function saveConfig(config) {
 // ================================================================
 //  Google Drive 画像アップロード
 // ================================================================
+
+// メモ写真配列をアップロード（base64はDriveに、URLはそのまま返す）
+function uploadMemoPhotos(cardId, photos) {
+  if (!photos || !photos.length) return [];
+  // 文字列（JSON）の場合はパース
+  if (typeof photos === 'string') {
+    try { photos = JSON.parse(photos); } catch(e) { return []; }
+  }
+  return photos.map((p, i) => {
+    if (!p) return '';
+    // すでにURLならそのまま
+    if (p.startsWith('http')) return p;
+    // base64ならアップロード
+    return uploadImage('memo_' + cardId + '_' + i, p);
+  }).filter(Boolean);
+}
+
 function uploadImage(id, dataUrl) {
   try {
     // フォルダIDはシート設定 → スクリプトプロパティの順で取得
