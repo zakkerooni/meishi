@@ -2,6 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -2019,41 +2022,36 @@ async function saveMemoModal() {
   const card = allCards.find(c=>c.id===curDetailId);
   if(!card) return;
   card.memo = document.getElementById('memo-textarea').value.trim();
-  // 写真を保存（空配列でリセット含む）
   card.memoPhotos = _memoPhotos.slice();
-
-  // ── GASに送信してDriveアップロード ──
-  const gasUrl = LS.g('gasUrl');
-  if(gasUrl) {
-    try {
-      const res = await fetch(gasUrl, {
-        method:'POST',
-        body: JSON.stringify({ action:'update', card })
-      });
-      const d = await res.json().catch(()=>({}));
-      // GASがDrive URLを返してきたらmemoPhotosを更新
-      if(d.memoPhotos && Array.isArray(d.memoPhotos) && d.memoPhotos.length) {
-        card.memoPhotos = d.memoPhotos;
-        _memoPhotos = d.memoPhotos.slice();
-      }
-    } catch(e) { console.warn('saveMemoModal GAS:', e.message); }
-  }
 
   // localStorageに保存
   const idx = allCards.findIndex(c=>c.id===curDetailId);
   if(idx>=0) allCards[idx]=card;
   LS.s('cardsCache',JSON.stringify(allCards));
 
+  // GASにも同期（テキストメモのみ、写真はlocalStorage）
+  const gasUrl=LS.g('gasUrl');
+  if(gasUrl){
+    try{
+      await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:'update',card:{
+        ...card, memoPhotos: undefined, imageData: undefined, imageData2: undefined
+      }})});
+    }catch(e){ console.warn('memo sync:', e.message); }
+  }
+
   closeMemoModal();
-  // メモ表示欄を即時更新
-  const mt=document.getElementById('d-memo-text');
-  if(mt) mt.textContent=card.memo||'';
-  const mp=document.getElementById('d-memo-photos');
-  if(mp) mp.innerHTML=(card.memoPhotos||[]).map(src=>
-    `<img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;cursor:pointer;margin:0 8px 8px 0" onclick="openImgZoom('${src}')">`
-  ).join('');
+  renderMemoBlock(card);
   toast('メモを保存しました ✓','ok');
   renderCards();
+}
+
+function renderMemoBlock(card) {
+  const mt=document.getElementById('d-memo-text');
+  const mp=document.getElementById('d-memo-photos');
+  if(mt) mt.textContent=card.memo||'';
+  if(mp) mp.innerHTML=(card.memoPhotos||[]).map(src=>
+    `<img src="${src}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;cursor:pointer;margin:0 6px 6px 0" onclick="openImgZoom('${src}')">`
+  ).join('');
 }
 
 // ════════ RENDER CARDS ════════
@@ -2516,189 +2514,144 @@ function bulkClear() {
 }
 
 async function bulkStartOCR() {
-  if (!bulkFiles.length) return;
+  if (!bulkFiles.length) { toast('画像を選択してください', 'err'); return; }
   const ready = bulkFiles.filter(f => f.status === 'ready');
   if (!ready.length) { toast('取り込み済みです', ''); return; }
 
-  const gasUrl = LS.g('gasUrl');
-  const geminiKey = LS.g('geminiKey') || LS.g('geminiKeyUser');
-  const claudeKey = LS.g('apiKey') || LS.g('apiKeyUser');
-  if (!geminiKey && !claudeKey) {
-    toast('APIキーを設定してください（設定タブ→AIキー）', 'err'); return;
-  }
+  // キーを取得（優先順位: 管理者共通Gemini → 個人Gemini → Claude）
+  const gKey = LS.g('geminiKey') || LS.g('geminiKeyUser') || '';
+  const cKey = LS.g('apiKey') || LS.g('apiKeyUser') || '';
 
+  // デバッグ: キーの状態をtoastで表示
+  if (!gKey && !cKey) {
+    toast('AIキー未設定。マイページ→Gemini APIキーを入力してください', 'err');
+    return;
+  }
+  console.log('bulkOCR start:', {gKey: gKey ? gKey.slice(0,8)+'...' : 'なし', cKey: cKey ? 'あり' : 'なし'});
+
+  const gasUrl = LS.g('gasUrl') || '';
   const prog = document.getElementById('bulk-progress');
   const bar  = document.getElementById('bulk-bar');
   if(prog) prog.style.display = 'block';
   if(bar)  bar.style.width = '0%';
 
-  let totalSaved = 0;
+  let saved = 0;
   const myName = LS.g('myName') || '';
   const myOrg  = LS.g('myOrg')  || 'miks';
-
-  // 強化版プロンプト（複数名刺を確実に認識）
-  const PROMPT = `あなたは名刺OCRの専門家です。
-この画像に写っているすべての名刺を1枚ずつ認識し、名刺ごとに1つのJSONオブジェクトを作成して配列で返してください。
-
-重要なルール:
-- 画像に複数の名刺がある場合は、必ず全て認識して別々のオブジェクトにしてください
-- 名刺が3枚あれば3つ、5枚あれば5つのオブジェクトを返してください
-- 名刺の境界を正確に識別してください
-- 日本語・英語両方に対応してください
-- 縦書きの名刺にも対応してください
-
-各オブジェクトのJSON形式（必ずこの形式で）:
-{"company":"会社名","dept":"部署名","name":"氏名","nameKana":"ふりがな","role":"役職","email":"メール","tel":"電話番号","mobile":"携帯番号","zip":"郵便番号数字のみ","addr":"住所（郵便番号除く）","url":"URL","memo":""}
-
-注意:
-- nameKana: ひらがなで入力。名刺に記載がなければ漢字から推測
-- zip: 数字とハイフンのみ（〒マーク不要）
-- 会社名・氏名が読み取れない場合は空文字""
-- 必ずJSON配列のみを返してください。前後の説明文・マークダウン記法（\`\`\`）は不要`;
 
   for (let i = 0; i < bulkFiles.length; i++) {
     const item = bulkFiles[i];
     if (item.status !== 'ready') continue;
-
     item.status = 'processing';
     bulkRenderGrid();
 
     try {
       const b64 = item.dataUrl.split(',')[1];
       const mt  = item.dataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+      const prompt = `この画像の名刺を全て読み取りJSON配列で返せ。名刺が複数あれば複数返せ。
+形式: [{"company":"","dept":"","name":"","nameKana":"","role":"","email":"","tel":"","mobile":"","addr":"","url":""}]
+ルール: nameKanaはひらがな。addrは郵便番号込み。JSONのみ返せ。`;
 
-      // OCR実行
       let rawText = '';
-      if (geminiKey) {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+
+      if (gKey) {
+        // Gemini
+        toast(`画像${i+1}: Geminiで認識中…`, '');
+        const r = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${gKey}`,
           {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({
-              contents:[{ parts:[
-                { inline_data:{ mime_type: mt, data: b64 }},
-                { text: PROMPT }
+              contents:[{parts:[
+                {inline_data:{mime_type:mt, data:b64}},
+                {text:prompt}
               ]}],
-              generationConfig:{ temperature: 0.05, maxOutputTokens: 4096 }
+              generationConfig:{temperature:0.1, maxOutputTokens:2048}
             })
           }
         );
-        const d = await res.json();
+        const d = await r.json();
         if (d.error) throw new Error('Gemini: ' + d.error.message);
         rawText = d.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+        console.log('Gemini response:', rawText.slice(0, 200));
       } else {
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
+        // Claude
+        toast(`画像${i+1}: Claudeで認識中…`, '');
+        const r = await fetch('https://api.anthropic.com/v1/messages', {
+          method:'POST',
+          headers:{
             'Content-Type':'application/json',
-            'x-api-key': claudeKey,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true'
+            'x-api-key':cKey,
+            'anthropic-version':'2023-06-01',
+            'anthropic-dangerous-direct-browser-access':'true'
           },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-6',
-            max_tokens: 4096,
-            messages:[{ role:'user', content:[
-              { type:'image', source:{ type:'base64', media_type: mt, data: b64 }},
-              { type:'text', text: PROMPT }
+          body:JSON.stringify({
+            model:'claude-haiku-4-5-20251001',
+            max_tokens:2048,
+            messages:[{role:'user',content:[
+              {type:'image',source:{type:'base64',media_type:mt,data:b64}},
+              {type:'text',text:prompt}
             ]}]
           })
         });
-        const d = await res.json();
+        const d = await r.json();
         if (d.error) throw new Error('Claude: ' + JSON.stringify(d.error));
         rawText = d.content?.[0]?.text || '[]';
+        console.log('Claude response:', rawText.slice(0, 200));
       }
 
-      // JSON抽出（マークダウンや説明文を除去）
+      // JSON抽出
       let results = [];
-      try {
-        // [ ... ] の部分を抽出
-        const match = rawText.match(/\[[\s\S]*\]/);
-        const jsonStr = match ? match[0] : rawText.replace(/```json|```/g,'').trim();
-        results = JSON.parse(jsonStr);
-        if (!Array.isArray(results)) results = [results];
-      } catch(parseErr) {
-        console.error('JSON parse error. Raw text:', rawText);
-        // オブジェクト1つとして試みる
-        try {
-          const objMatch = rawText.match(/\{[\s\S]*\}/);
-          if (objMatch) results = [JSON.parse(objMatch[0])];
-        } catch(e2) {}
+      const m = rawText.match(/\[[\s\S]*\]/);
+      if (m) {
+        try { results = JSON.parse(m[0]); } catch(e) { console.warn('parse err:', m[0]); }
       }
+      if (!Array.isArray(results)) results = [];
+      console.log(`画像${i+1}: ${results.length}件検出`);
 
-      console.log(`画像${i+1}: ${results.length}枚の名刺を検出`);
-
-      // 各名刺をカードとして保存
       for (const r of results) {
-        if (!r.name && !r.company) {
-          console.warn('名前・会社名なし、スキップ:', r);
-          continue;
-        }
-        const addr = r.zip ? `〒${r.zip} ${r.addr||''}`.trim() : (r.addr||'');
+        if (!r.name && !r.company) continue;
         const card = {
-          id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
-          company:  r.company||'',
-          dept:     r.dept||'',
-          name:     r.name||'',
-          kana:     r.nameKana||'',
-          role:     r.role||'',
-          email:    r.email||'',
-          tel:      r.tel||'',
-          mobile:   r.mobile||'',
-          addr,
-          url:      r.url||'',
-          memo:     '',
-          org:      myOrg,
-          owner:    myName,
-          imageData:  item.dataUrl,
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+          company: r.company||'', dept: r.dept||'',
+          name: r.name||'', kana: r.nameKana||'',
+          role: r.role||'', email: r.email||'',
+          tel: r.tel||'', mobile: r.mobile||'',
+          addr: r.addr||'', url: r.url||'',
+          memo: '', org: myOrg, owner: myName,
+          imageData: item.dataUrl,
           imageData2: item.backDataUrl||'',
           exchangedAt: '',
           createdAt: fmtDate(new Date().toISOString())
         };
 
-        // localStorageに即座に保存
-        allCards.unshift(card); // 先頭に追加
+        allCards.unshift(card);
         LS.s('cardsCache', JSON.stringify(allCards));
 
-        // GASに保存
         if (gasUrl) {
           try {
-            const r2 = await fetch(gasUrl, {
-              method: 'POST',
-              body: JSON.stringify({ action:'add', card })
-            });
+            const r2 = await fetch(gasUrl, {method:'POST', body:JSON.stringify({action:'add', card})});
             const d2 = await r2.json().catch(()=>({}));
-            if (!d2.ok) console.warn('GAS add failed:', d2, card.name);
-            else console.log('GAS saved:', card.name, card.company);
-          } catch(saveErr) {
-            console.warn('GAS save error:', saveErr.message, card.name);
-          }
+            console.log('GAS save:', card.name, d2.ok ? 'OK' : d2);
+          } catch(e) { console.warn('GAS err:', e.message); }
         }
-        totalSaved++;
+        saved++;
       }
-
       item.status = results.length > 0 ? 'done' : 'error';
-
     } catch(e) {
-      console.error('bulk OCR error:', e);
+      console.error('OCR error:', e);
       item.status = 'error';
+      toast('エラー: ' + e.message, 'err');
     }
 
-    if(bar) bar.style.width = `${((i+1) / bulkFiles.length) * 100}%`;
+    if(bar) bar.style.width = `${((i+1)/bulkFiles.length)*100}%`;
     bulkRenderGrid();
   }
 
-  // 完了後に画面を更新
   renderCards(); buildOwChips(); buildOrgChips();
-  const errCount = bulkFiles.filter(f=>f.status==='error').length;
-  if (totalSaved > 0) {
-    toast(`${totalSaved}件の名刺を登録しました ✓`, 'ok');
-  } else {
-    toast('名刺を認識できませんでした。コンソールを確認してください', 'err');
-  }
+  toast(saved > 0 ? `${saved}件登録しました ✓` : '認識できませんでした。明るい写真で再試行してください', saved>0?'ok':'err');
 }
-
 
 // ════════ 組織管理 ════════
 // 組織リストをlocalStorageで管理（デフォルト: MiKS, Linnas）
@@ -3051,13 +3004,7 @@ function openDetail(id){
     ).join('');
   }
   // ── メモ欄を更新 ──
-  const _mt=document.getElementById('d-memo-text');
-  const _mp=document.getElementById('d-memo-photos');
-  if(_mt) _mt.textContent=c.memo||'';
-  if(_mp) _mp.innerHTML=(c.memoPhotos||[]).map(src=>
-    `<img src="${src}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;cursor:pointer" onclick="openImgZoom('${src}')">`
-  ).join('');
-
+  renderMemoBlock(c);
   openM('detail-modal');
   if(frontSrc){ setTimeout(()=>{ document.getElementById('d-img-el').src=frontSrc+'#t='+(Date.now()); },50); }
 }
