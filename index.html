@@ -1506,6 +1506,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <input type="file" id="ci-back-new" accept="image/*" capture="environment" style="display:none" onchange="regHandleBack(event)">
     </div>
 
+    <!-- rs2: トリミング（新フローでは使用しないが互換のため残す） -->
+    <div class="rs" id="rs2" style="display:none"><div id="crop-wrap"><canvas id="crop-c"></canvas></div></div>
     <!-- ── STEP B: 確認・入力フォーム ── -->
     <div class="rs" id="rs3">
       <div class="sheet-hd" style="position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);backdrop-filter:blur(12px)">
@@ -2884,7 +2886,39 @@ async function regAutoOCR(dataUrl) {
 
   } catch(e) {
     console.warn('autoOCR error:', e);
-    if(statusEl) statusEl.textContent = '読み取りに失敗 — 手動入力してください';
+    const msg = e.message || '';
+    if(msg.includes('429') || msg.includes('quota')) {
+      if(statusEl) statusEl.innerHTML = '<span style="color:var(--warn)">⚠ Gemini使用制限 — Claude APIで再試行中…</span>';
+      // GeminiがだめならClaudeでリトライ
+      if(claudeKey && geminiKey) {
+        try {
+          const b64b = dataUrl.split(',')[1];
+          const mtb  = dataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+          const promptb = `この名刺画像を読み取り、以下のJSON形式で返してください（1つのオブジェクト）。\n{"company":"","dept":"","name":"","nameKana":"","role":"","email":"","tel":"","mobile":"","zip":"","addr":"","url":""}\n- nameKana: ひらがな\n- zip: 数字とハイフンのみ\n- JSONのみ返してください`;
+          const resb = await fetch('https://api.anthropic.com/v1/messages', {
+            method:'POST',
+            headers:{'Content-Type':'application/json','x-api-key':claudeKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+            body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mtb,data:b64b}},{type:'text',text:promptb}]}]})
+          });
+          const db = await resb.json();
+          const rawb = db.content?.[0]?.text||'{}';
+          const mb = rawb.match(/\{[\s\S]*\}/);
+          const rb = mb ? JSON.parse(mb[0]) : {};
+          const set2 = (id, val) => { const el=document.getElementById(id); if(el&&val) el.value=val; };
+          set2('f-company',rb.company);set2('f-dept',rb.dept);set2('f-name',rb.name);
+          set2('f-kana',rb.nameKana);set2('f-role',rb.role);set2('f-email',rb.email);
+          set2('f-tel',rb.tel);set2('f-mobile',rb.mobile);set2('f-zip',rb.zip);
+          set2('f-addr',rb.addr);set2('f-url',rb.url);
+          if(statusEl) statusEl.innerHTML = '<span style="color:var(--ok)">✓ Claude APIで読み取り完了</span>';
+        } catch(e2) {
+          if(statusEl) statusEl.textContent = '読み取りに失敗 — 手動で入力してください';
+        }
+      } else {
+        if(statusEl) statusEl.textContent = 'Gemini使用制限中 — 手動で入力してください';
+      }
+    } else {
+      if(statusEl) statusEl.textContent = '読み取りに失敗 — 手動入力してください';
+    }
   }
 
   if(scanEl) scanEl.style.display = 'none';
@@ -3061,14 +3095,20 @@ function openRegModal(){
   document.getElementById('f-org').value=s.myOrg;
   document.getElementById('f-owner').value=s.myName;
   ['company','dept','name','role','email','tel','mobile','addr','url','memo'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)el.value=''});
-  setRStep(1);openM('reg-modal');
+  toS1();openM('reg-modal');
 }
 
 function setRStep(n){
   document.querySelectorAll('.rs').forEach(el=>el.classList.remove('active'));
-  document.getElementById('rs'+n).classList.add('active');
-  ['sd1','sd2','sd3'].forEach((id,i)=>{const d=document.getElementById(id);d.className='sd'+(i+1<n?' done':i+1===n?' cur':'')});
-  document.getElementById('sd-lbl').textContent=['撮影・アップロード','トリミング','情報入力・保存'][n-1];
+  const rsEl = document.getElementById('rs'+n);
+  if(rsEl) rsEl.classList.add('active');
+  // ステップドットは新フローでは存在しないのでnullガード
+  ['sd1','sd2','sd3'].forEach((id,i)=>{
+    const d=document.getElementById(id);
+    if(d) d.className='sd'+(i+1<n?' done':i+1===n?' cur':'');
+  });
+  const lbl=document.getElementById('sd-lbl');
+  if(lbl) lbl.textContent=['撮影','確認','情報入力'][n-1]||'';
 }
 
 
@@ -3267,7 +3307,8 @@ function handleFile(e){
 
 function handleFileBack(e) {
   const file=e.target.files[0];if(!file)return;
-  readAndProcess(file,'cap-area-back',true);
+  // 新フロー: regHandleBackに委譲
+  regHandleBack(e);
   e.target.value='';
 }
 
