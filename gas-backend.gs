@@ -32,10 +32,16 @@ function doPost(e) {
     // --- セキュリティ: アプリケーショントークンの検証 ---
     const config = getConfig();
     let appToken = config.appToken;
-    
     if (!appToken) {
       appToken = Utilities.getUuid();
       saveConfig({ ...config, appToken: appToken });
+    }
+
+    // 修正：ログインアクション以外、かつトークンが一致しない場合のみ弾く
+    if (action !== 'verifyAdmin') {
+      if (body.appToken !== appToken) {
+        return jsonRes({ ok: false, error: 'Unauthorized: 無効なアクセスです。' });
+      }
     }
 
     // verifyAdmin（ログイン時）以外の通信は、正しいトークンがないと弾く
