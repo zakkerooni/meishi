@@ -1,5 +1,5 @@
 // ================================================================
-//  名刺帳 — GAS バックエンド v3 (Security & Performance Updated)
+//  名刺帳 — GAS バックエンド v3 (Security, Performance & OCR Updated)
 // ================================================================
 
 const SH_CARDS   = '名刺データ';
@@ -33,7 +33,6 @@ function doPost(e) {
     const config = getConfig();
     let appToken = config.appToken;
     
-    // 初回起動時などでトークンがない場合は自動生成
     if (!appToken) {
       appToken = Utilities.getUuid();
       saveConfig({ ...config, appToken: appToken });
@@ -68,7 +67,6 @@ function doPost(e) {
       const adminEmails = members.filter(m => m.role === 'admin' && m.gEmail).map(m => m.gEmail.toLowerCase().trim());
       const isAdmin = adminEmails.includes(email);
 
-      // 認証成功時のみ、セキュアトークン(appToken)をクライアントに渡す
       return jsonRes({ ok:true, isAdmin, isMember: !!matched, member: matched || null, appToken: (isAdmin || matched) ? appToken : null });
     }
 
@@ -116,7 +114,7 @@ function doPost(e) {
 }
 
 // ================================================================
-//  パフォーマンス最適化: スプレッドシートへのアクセスを同一処理内でキャッシュ
+//  パフォーマンス最適化: スプレッドシートアクセスキャッシュ
 // ================================================================
 let _ssCache = null;
 function getSS() {
@@ -142,7 +140,6 @@ function getOrCreateSheet(name, headers) {
   return sheet;
 }
 
-// --- デフォルトデータ投入用 ---
 function seedConfig(sheet) {
   const defaults = {
     org1Name: 'MiKS', org1Color: '#1a56db', org2Name: 'Linnas', org2Color: '#be185d',
@@ -156,7 +153,6 @@ function seedMembers(sheet) {
   sheet.appendRow(['m_init','管理者','miks','','','admin','','',new Date().toISOString()]);
 }
 
-// ── 以下、既存のデータ操作関数（ロジックは変えずにそのまま） ──
 function getCards() {
   const sheet = getOrCreateSheet(SH_CARDS, CARD_HEADERS);
   const data  = sheet.getDataRange().getValues();
