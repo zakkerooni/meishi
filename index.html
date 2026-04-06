@@ -2582,15 +2582,15 @@ async function bulkStartOCR() {
         const gKey = geminiKeyAdmin || geminiKeyUser;
         toast(`画像${i+1}: Geminiで認識中…`, '');
         try {
-          result = await ocrGemini(gKey, 'gemini-2.0-flash', b64, mt);
-          usedEngine = 'Gemini';
+          result = await ocrGemini(gKey, 'gemini-2.5-flash', b64, mt);
+          usedEngine = 'Gemini 2.5 Flash';
         } catch(e) {
-          console.warn(`画像${i+1} Gemini 2.0失敗、1.5にフォールバック:`, e.message);
+          console.warn(`画像${i+1} Gemini 2.5失敗、2.0にフォールバック:`, e.message);
           try {
-            result = await ocrGemini(gKey, 'gemini-1.5-flash', b64, mt);
-            usedEngine = 'Gemini 1.5';
+            result = await ocrGemini(gKey, 'gemini-2.0-flash', b64, mt);
+            usedEngine = 'Gemini 2.0 Flash';
           } catch(e2) {
-            console.warn(`画像${i+1} Gemini 1.5も失敗:`, e2.message);
+            console.warn(`画像${i+1} Gemini 2.0も失敗:`, e2.message);
             lastError = e2.message;
           }
         }
@@ -3406,20 +3406,20 @@ async function runOCR() {
   let result = null;
   let usedEngine = '';
 
-  // ── 1. Gemini 2.0 Flash（最新・高精度） ──
+  // ── 1. Gemini 2.5 Flash（最新・推奨） ──
   if (geminiKeyAdmin || geminiKeyUser) {
     const gKey = geminiKeyAdmin || geminiKeyUser;
     try {
-      result = await ocrGemini(gKey, 'gemini-2.0-flash', b64, mt);
-      usedEngine = 'Gemini 2.0 Flash';
+      result = await ocrGemini(gKey, 'gemini-2.5-flash', b64, mt);
+      usedEngine = 'Gemini 2.5 Flash';
     } catch(e) {
-      console.warn('Gemini 2.0 Flash failed:', e.message);
-      // ── 2. Gemini 1.5 Flash（フォールバック） ──
+      console.warn('Gemini 2.5 Flash failed:', e.message);
+      // ── 2. Gemini 2.0 Flash（フォールバック） ──
       try {
-        result = await ocrGemini(gKey, 'gemini-1.5-flash', b64, mt);
-        usedEngine = 'Gemini 1.5 Flash';
+        result = await ocrGemini(gKey, 'gemini-2.0-flash', b64, mt);
+        usedEngine = 'Gemini 2.0 Flash';
       } catch(e2) {
-        console.warn('Gemini 1.5 Flash failed:', e2.message);
+        console.warn('Gemini 2.0 Flash failed:', e2.message);
       }
     }
   }
