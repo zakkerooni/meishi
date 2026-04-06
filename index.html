@@ -2415,6 +2415,38 @@ async function guessKana(name) {
 }
 
 
+// CSV取り込みなどの裏側で動かすための、ふりがな取得専用関数
+async function getKanaFromAI(name) {
+  const geminiKey = LS.g('geminiKey')||LS.g('geminiKeyUser');
+  const claudeKey = LS.g('apiKey')||LS.g('apiKeyUser');
+  if (!geminiKey && !claudeKey) return '';
+  
+  const prompt = '「'+name+'」の読み仮名（ひらがな）を返してください。姓と名の間にスペースを入れてください。ひらがなのみで、他の文字や説明は不要です。例: やまだ たろう';
+  try {
+    if (geminiKey) {
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+geminiKey,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:50}})
+      });
+      const d = await res.json();
+      const kana = (d.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
+      return /^[ぁ-ゖ\s　ー]+$/.test(kana) ? kana : '';
+    } else if (claudeKey) {
+      const res = await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':claudeKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:50,messages:[{role:'user',content:prompt}]})
+      });
+      const d = await res.json();
+      const kana = (d.content?.[0]?.text||'').trim();
+      return /^[ぁ-ゖ\s　ー]+$/.test(kana) ? kana : '';
+    }
+  } catch(e) {}
+  return '';
+}
+
+
+
 // ════════ 中央+ボタンメニュー ════════
 let fabOpen = false;
 function toggleFabMenu() {
@@ -3417,7 +3449,7 @@ const JP_MEISHI_PROMPT = `あなたは日本の名刺OCRの専門家です。
 - company: 法人格（株式会社/有限会社/合同会社/一般社団法人等）を含めた正式名称。グループ会社名がある場合は親会社名を優先。
 - dept: 部署名・事業部名。複数ある場合はスラッシュ区切り（例: 営業部/東京支社）
 - name: 氏名。日本語は「姓 名」の形式（スペース区切り）。ふりがなは除く。役職の敬称（様・殿）は除く。
-- nameKana: ふりがな（ひらがなまたはカタカナ）。なければ空文字。
+- nameKana: 氏名のふりがな（ひらがな）。名刺に記載がない場合でも、漢字から一般的な読みを必ず推測して出力してください。
 - role: 役職名。代表取締役・取締役・部長・課長・マネージャー等。複数ある場合は上位のものを1つ。
 - email: メールアドレス。複数ある場合は最初の1つ。
 - tel: 固定電話番号（市外局番から）。内線番号・FAX番号は除く。ハイフン区切り。
@@ -3430,7 +3462,7 @@ const JP_MEISHI_PROMPT = `あなたは日本の名刺OCRの専門家です。
 【重要】
 - 縦書きの名刺にも対応してください
 - 読み取れない・存在しない項目は必ず空文字にしてください
-- 推測や補完は禁止です。画像に記載のある情報のみ抽出してください
+- nameKana以外は、推測や補完は禁止です。画像に記載のある情報のみ抽出してください
 
 以下のJSON形式のみで返してください（前後に説明文・マークダウン記法を一切付けないこと）:
 {"company":"","dept":"","name":"","nameKana":"","role":"","email":"","tel":"","fax":"","mobile":"","addr":"","url":"","sns":""}`;
@@ -3510,6 +3542,10 @@ async function runOCR() {
   if(result.nameKana){
     const ke=document.getElementById('f-kana');
     if(ke&&!ke.value) ke.value=result.nameKana;
+  }
+  
+  if(!result.nameKana && result.name) {
+    guessKana(result.name); // AIが読み取れなかったら裏側でふりがな推測だけやり直す
   }
   // fax・sns はメモ欄に追記
   const extras = [
@@ -3808,10 +3844,19 @@ async function doImport(){
     if(!hasName&&!hasCo){skip++;continue}
     if(!card.company)card.company='（会社名なし）';
     if(!card.name)card.name='（氏名なし）';
+
+    // 👇==== ここからふりがな推測の追加処理 ====👇
+    if(card.name !== '（氏名なし）' && !card.kana) {
+      btn.textContent = `取り込み＆AI推測中… (${ok + 1}/${csvRows.length})`; // 進捗表示
+      await new Promise(r => setTimeout(r, 1000)); // API制限回避のため1秒待機
+      card.kana = await getKanaFromAI(card.name);
+    }
+    // 👆========================================👆
+
     if(gasUrl){try{await gasPost(gasUrl,{action:'add',card})}catch{}}
     allCards.unshift({...card});ok++;
-    // small delay to avoid rate limiting
-    if(ok%10===0)await new Promise(r=>setTimeout(r,200));
+    
+    // (元の200ms待機は上の1000ms待機があるので削除してOKです)
   }
 
   document.getElementById('is-total').textContent=csvRows.length;
