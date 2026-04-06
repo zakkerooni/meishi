@@ -2,7 +2,7 @@
   "name": "名刺帳 — miks & Linnas",
   "short_name": "名刺帳",
   "description": "miks & Linnas 共有名刺管理アプリ",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#0f0f0f",
   "theme_color": "#0f0f0f",
