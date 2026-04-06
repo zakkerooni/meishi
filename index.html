@@ -3851,6 +3851,13 @@ async function syncFromCloud() {
       applyCloudConfig(cfg);
       updateOcrEngineStatus();
     }
+    // sync結果の確認
+    if (!data.ok && !listData.ok) {
+      const errMsg = data.error || listData.error || 'unknown error';
+      toast(`⚠️ DB同期失敗: ${errMsg}`, 'err');
+      return;
+    }
+
     // カード反映（listから最新を優先）
     const freshCards = listData.cards || data.cards || [];
     console.log('syncFromCloud: cards received:', freshCards.length);
@@ -3858,15 +3865,19 @@ async function syncFromCloud() {
       allCards = freshCards;
       LS.s('cardsCache', JSON.stringify(freshCards));
       renderCards(); buildOwChips(); buildOrgChips(); updateMyStats();
+      toast(`DB同期完了 (${freshCards.length}件) ✓`, 'ok');
     } else if (freshCards.length === 0 && (listData.ok || data.ok)) {
       // スプシが空になった場合も反映
-      console.warn('syncFromCloud: スプシのカードが0件です');
+      toast('DB同期完了 (0件)', '');
     }
     // 最後に必ずマイページを最新データで更新
     if(typeof loadMyPageData === 'function') {
       setTimeout(loadMyPageData, 50);
     }
-  } catch(e) { console.warn('syncFromCloud:', e.message); }
+  } catch(e) {
+    toast(`⚠️ DB同期エラー: ${e.message}`, 'err');
+    console.error('syncFromCloud:', e);
+  }
 }
 
 function applyCloudConfig(cfg) {
@@ -4625,7 +4636,13 @@ async function verifyAndLogin({ email, name, picture, password }) {
     const data = await res.json();
 
     // ログイン成功時に appToken をローカルに保存（以降の全リクエストで使用）
-    if (data.appToken) LS.s('appToken', data.appToken);
+    if (data.appToken) {
+      LS.s('appToken', data.appToken);
+      console.log('appToken 保存済み:', data.appToken.slice(0,8) + '...');
+    } else {
+      toast('⚠️ appTokenが取得できませんでした。GAS設定を確認してください', 'err');
+      console.warn('login: appToken returned null. data:', data);
+    }
 
     // メンバー一覧を POST で取得（GETは doGet で遮断されているため）
     const membersRes = await fetch(gasUrl, {
