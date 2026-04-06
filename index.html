@@ -1799,9 +1799,10 @@ async function refreshAppToken() {
     let email = '';
     try { email = JSON.parse(localStorage.getItem('meishi_user') || '{}').email || ''; } catch(e) {}
     if (!email) return false;
+    const password = LS.g('meishi_pw') || '';
     const res = await fetch(gasUrl, {
       method: 'POST',
-      body: JSON.stringify({ action: 'verifyAdmin', email, password: '' })
+      body: JSON.stringify({ action: 'verifyAdmin', email, password })
     });
     const data = await res.json();
     if (data.appToken) {
@@ -1813,7 +1814,8 @@ async function refreshAppToken() {
   return false;
 }
 
-// Unauthorized (401相当) のとき appToken をリフレッシュしてリトライする gasPost
+// Unauthorized のとき appToken をリフレッシュしてリトライ。
+// リフレッシュも失敗した場合はログイン画面へ自動遷移。
 async function gasPostWithRetry(url, body) {
   const res = await gasPost(url, body);
   const data = await res.json().catch(() => ({}));
@@ -1824,8 +1826,22 @@ async function gasPostWithRetry(url, body) {
       const res2 = await gasPost(url, body);
       return { res: res2, data: await res2.json().catch(() => ({})) };
     }
+    // リフレッシュ失敗 → ログイン画面へ自動遷移（セッション切れ扱い）
+    forceRelogin();
+    return { res, data: { ok: false, error: 'session_expired' } };
   }
   return { res, data };
+}
+
+// セッション切れ時: データは消さずにログイン画面へ戻す
+function forceRelogin() {
+  LS.s('appToken', ''); // 無効なトークンを削除
+  currentUser = null;
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-loading').classList.remove('show');
+  document.getElementById('g-signin-btn').style.display = 'flex';
+  toast('セッションが切れました。再ログインしてください', 'err');
 }
 
 // ════════ cardsCache 保存ヘルパー ════════
@@ -3886,7 +3902,8 @@ async function syncFromCloud() {
     // sync結果の確認
     if (!data.ok && !listData.ok) {
       const errMsg = data.error || listData.error || 'unknown error';
-      toast(`⚠️ DB同期失敗: ${errMsg}`, 'err');
+      // session_expired は forceRelogin() で既にトーストを出しているのでスキップ
+      if (errMsg !== 'session_expired') toast(`⚠️ DB同期失敗: ${errMsg}`, 'err');
       return;
     }
 
@@ -4667,7 +4684,9 @@ async function verifyAndLogin({ email, name, picture, password }) {
     });
     const data = await res.json();
 
-    // ログイン成功時に appToken をローカルに保存（以降の全リクエストで使用）
+    // ログイン成功時に appToken とパスワードをローカルに保存
+    // パスワードはトークン自動リフレッシュ時に必要
+    if (password) LS.s('meishi_pw', password);
     if (data.appToken) {
       LS.s('appToken', data.appToken);
       console.log('appToken 保存済み:', data.appToken.slice(0,8) + '...');
