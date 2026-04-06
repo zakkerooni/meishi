@@ -2460,7 +2460,7 @@ async function getKanaFromAI(name) {
   const claudeKey = LS.g('apiKey')||LS.g('apiKeyUser');
   if (!geminiKey && !claudeKey) return '';
   
-  const prompt = '「'+name+'」の読み仮名（ひらがな）を返してください。姓と名の間にスペースを入れてください。ひらがなのみで、他の文字や説明は不要です。例: やまだ たろう';
+  const prompt = '「'+name+'」の読み仮名（ひらがな）を返してください。漢字から名前として一般的な読みを必ず推測して出力してください。姓と名の間にスペースを入れてください。ひらがなのみで、他の文字や説明は不要です。例: やまだ たろう';
   try {
     if (geminiKey) {
       const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+geminiKey,{
@@ -3492,7 +3492,7 @@ const JP_MEISHI_PROMPT = `あなたは日本の名刺OCRの専門家です。
 - company: 法人格（株式会社/有限会社/合同会社/一般社団法人等）を含めた正式名称。グループ会社名がある場合は親会社名を優先。
 - dept: 部署名・事業部名。複数ある場合はスラッシュ区切り（例: 営業部/東京支社）
 - name: 氏名。日本語は「姓 名」の形式（スペース区切り）。ふりがなは除く。役職の敬称（様・殿）は除く。
-- nameKana: 氏名のふりがな（ひらがな）。名刺に記載がない場合でも、漢字から一般的な読みを必ず推測して出力してください。
+- nameKana: 氏名のふりがな（ひらがな）。名刺に記載がない場合でも、漢字から名前として一般的な読みを必ず推測して出力してください。
 - role: 役職名。代表取締役・取締役・部長・課長・マネージャー等。複数ある場合は上位のものを1つ。
 - email: メールアドレス。複数ある場合は最初の1つ。
 - tel: 固定電話番号（市外局番から）。内線番号・FAX番号は除く。ハイフン区切り。
