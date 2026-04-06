@@ -1783,9 +1783,11 @@ const X=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 // ════════ GAS 通信ヘルパー ════════
 // appToken + Content-Type を自動付与してPOSTする
 function gasPost(url, body) {
+  // Content-Type: application/json はCORSプリフライト(OPTIONS)を引き起こし
+  // GASがOPTIONSを処理できないため "Failed to fetch" になる。
+  // GASは Content-Type なしでも e.postData.contents でJSONを受け取れる。
   return fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...body, appToken: LS.g('appToken') })
   });
 }
