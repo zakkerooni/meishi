@@ -1781,15 +1781,51 @@ const LS={g:k=>localStorage.getItem(k)||(k==='gasUrl'?DEFAULT_GAS_URL:''),s:(k,v
 const X=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 // ════════ GAS 通信ヘルパー ════════
-// appToken + Content-Type を自動付与してPOSTする
+// Content-Type: application/json はCORSプリフライト(OPTIONS)を引き起こし
+// GASがOPTIONSを処理できないため "Failed to fetch" になる。
+// GASは Content-Type なしでも e.postData.contents でJSONを受け取れる。
 function gasPost(url, body) {
-  // Content-Type: application/json はCORSプリフライト(OPTIONS)を引き起こし
-  // GASがOPTIONSを処理できないため "Failed to fetch" になる。
-  // GASは Content-Type なしでも e.postData.contents でJSONを受け取れる。
   return fetch(url, {
     method: 'POST',
     body: JSON.stringify({ ...body, appToken: LS.g('appToken') })
   });
+}
+
+// appToken が期限切れ・不一致の場合、保存済みメールでサイレント再取得する
+async function refreshAppToken() {
+  const gasUrl = LS.g('gasUrl');
+  if (!gasUrl) return false;
+  try {
+    let email = '';
+    try { email = JSON.parse(localStorage.getItem('meishi_user') || '{}').email || ''; } catch(e) {}
+    if (!email) return false;
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'verifyAdmin', email, password: '' })
+    });
+    const data = await res.json();
+    if (data.appToken) {
+      LS.s('appToken', data.appToken);
+      console.log('appToken を自動リフレッシュしました');
+      return true;
+    }
+  } catch(e) { console.warn('refreshAppToken 失敗:', e.message); }
+  return false;
+}
+
+// Unauthorized (401相当) のとき appToken をリフレッシュしてリトライする gasPost
+async function gasPostWithRetry(url, body) {
+  const res = await gasPost(url, body);
+  const data = await res.json().catch(() => ({}));
+  if (!data.ok && data.error && data.error.includes('Unauthorized')) {
+    console.log('Unauthorized → appToken をリフレッシュしてリトライ');
+    const refreshed = await refreshAppToken();
+    if (refreshed) {
+      const res2 = await gasPost(url, body);
+      return { res: res2, data: await res2.json().catch(() => ({})) };
+    }
+  }
+  return { res, data };
 }
 
 // ════════ cardsCache 保存ヘルパー ════════
@@ -2636,22 +2672,16 @@ async function bulkStartOCR() {
         saveCardsCache(allCards);
 
         if (gasUrl) {
-          const tok = LS.g('appToken');
-          if (!tok) {
-            toast(`⚠️ appTokenが見つかりません。一度ログアウト→再ログインしてください`, 'err');
-          } else {
-            try {
-              const r2 = await gasPost(gasUrl, {action:'add', card});
-              const d2 = await r2.json().catch(()=>({}));
-              if (!d2.ok) {
-                const errMsg = d2.error || JSON.stringify(d2);
-                toast(`⚠️ GAS保存失敗: ${errMsg}`, 'err');
-                console.error('GAS save failed:', d2);
-              }
-            } catch(e) {
-              toast(`⚠️ GAS通信エラー: ${e.message}`, 'err');
-              console.error('GAS err:', e);
+          try {
+            const { data: d2 } = await gasPostWithRetry(gasUrl, {action:'add', card});
+            if (!d2.ok) {
+              const errMsg = d2.error || JSON.stringify(d2);
+              toast(`⚠️ GAS保存失敗: ${errMsg}`, 'err');
+              console.error('GAS save failed:', d2);
             }
+          } catch(e) {
+            toast(`⚠️ GAS通信エラー: ${e.message}`, 'err');
+            console.error('GAS err:', e);
           }
         }
         saved++;
@@ -3807,11 +3837,11 @@ async function syncFromCloud() {
   try {
     // 設定・メンバー・カードを並列取得（POST必須: doGetは遮断済み）
     const appToken = LS.g('appToken');
-    const [syncRes, listRes] = await Promise.all([
-      gasPost(gasUrl, { action: 'syncAll' }),
-      gasPost(gasUrl, { action: 'list' }),
+    // syncAll と list を並列取得。Unauthorized なら自動リフレッシュ＋リトライ
+    const [{ data }, { data: listData }] = await Promise.all([
+      gasPostWithRetry(gasUrl, { action: 'syncAll' }),
+      gasPostWithRetry(gasUrl, { action: 'list' }),
     ]);
-    const [data, listData] = await Promise.all([syncRes.json(), listRes.json()]);
     console.log('syncFromCloud raw:', {syncOk: data.ok, listCards: listData.cards?.length, dataCards: data.cards?.length});
 
     // 設定反映
