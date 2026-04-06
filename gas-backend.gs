@@ -37,14 +37,7 @@ function doPost(e) {
       saveConfig({ ...config, appToken: appToken });
     }
 
-    // 修正：ログインアクション以外、かつトークンが一致しない場合のみ弾く
-    if (action !== 'verifyAdmin') {
-      if (body.appToken !== appToken) {
-        return jsonRes({ ok: false, error: 'Unauthorized: 無効なアクセスです。' });
-      }
-    }
-
-    // verifyAdmin（ログイン時）以外の通信は、正しいトークンがないと弾く
+    // セキュリティ: verifyAdmin（ログイン）以外は appToken を必須とする
     if (action !== 'verifyAdmin') {
       if (body.appToken !== appToken) {
         return jsonRes({ ok: false, error: 'Unauthorized: 無効なアクセスです。' });
@@ -159,12 +152,33 @@ function seedMembers(sheet) {
   sheet.appendRow(['m_init','管理者','miks','','','admin','','',new Date().toISOString()]);
 }
 
+// ================================================================
+//  CacheService を使ったスプレッドシート読み込みキャッシュ（最大6分）
+//  名刺が増えても毎回全件読み込まずに済むため大幅に高速化できます
+// ================================================================
+const CACHE_TTL = 360; // 秒
+
+function invalidateCache() {
+  try {
+    const cache = CacheService.getScriptCache();
+    cache.remove('cards_cache');
+    cache.remove('members_cache');
+    cache.remove('config_cache');
+  } catch(e) {}
+}
+
 function getCards() {
+  try {
+    const cache = CacheService.getScriptCache();
+    const hit = cache.get('cards_cache');
+    if (hit) return JSON.parse(hit);
+  } catch(e) {}
+
   const sheet = getOrCreateSheet(SH_CARDS, CARD_HEADERS);
   const data  = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
   const hdrs = data[0];
-  return data.slice(1).map(row => {
+  const cards = data.slice(1).map(row => {
     const obj = {};
     hdrs.forEach((h, i) => {
       const val = String(row[i] ?? '');
@@ -174,17 +188,28 @@ function getCards() {
     });
     return obj;
   }).filter(r => r.id);
+
+  try {
+    const json = JSON.stringify(cards);
+    // CacheServiceは100KB上限のため、大きい場合はキャッシュしない
+    if (json.length < 90000) CacheService.getScriptCache().put('cards_cache', json, CACHE_TTL);
+  } catch(e) {}
+  return cards;
 }
 
 function getCardById(id) { return getCards().find(c => c.id === id); }
-function addCard(card) { const sheet = getOrCreateSheet(SH_CARDS, CARD_HEADERS); sheet.appendRow(CARD_HEADERS.map(h => card[h] ?? '')); }
+function addCard(card) {
+  const sheet = getOrCreateSheet(SH_CARDS, CARD_HEADERS);
+  sheet.appendRow(CARD_HEADERS.map(h => card[h] ?? ''));
+  invalidateCache();
+}
 function updateCard(card) {
   const sheet = getOrCreateSheet(SH_CARDS, CARD_HEADERS);
   const data  = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]) === String(card.id)) {
       sheet.getRange(i+1, 1, 1, CARD_HEADERS.length).setValues([CARD_HEADERS.map(h => card[h] ?? '')]);
-      return;
+      invalidateCache(); return;
     }
   }
   addCard(card);
@@ -193,20 +218,31 @@ function deleteCard(id) {
   const sheet = getOrCreateSheet(SH_CARDS, CARD_HEADERS);
   const data  = sheet.getDataRange().getValues();
   for (let i = data.length - 1; i >= 1; i--) {
-    if (String(data[i][0]) === String(id)) { sheet.deleteRow(i+1); return; }
+    if (String(data[i][0]) === String(id)) { sheet.deleteRow(i+1); invalidateCache(); return; }
   }
 }
 
 function getMembers() {
+  try {
+    const cache = CacheService.getScriptCache();
+    const hit = cache.get('members_cache');
+    if (hit) return JSON.parse(hit);
+  } catch(e) {}
+
   const sheet = getOrCreateSheet(SH_MEMBERS, MEMBER_HEADERS);
   const data  = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
   const hdrs = data[0];
-  return data.slice(1).map(row => {
+  const members = data.slice(1).map(row => {
     const obj = {};
     hdrs.forEach((h, i) => { obj[h] = String(row[i] ?? ''); });
     return obj;
   }).filter(r => r.id);
+
+  try {
+    CacheService.getScriptCache().put('members_cache', JSON.stringify(members), CACHE_TTL);
+  } catch(e) {}
+  return members;
 }
 
 function saveMember(member) {
@@ -228,19 +264,20 @@ function saveMember(member) {
       member.id = member.id || data[i][idIdx];
       member.createdAt = data[i][headers.indexOf('createdAt')] || now;
       sheet.getRange(i+1, 1, 1, MEMBER_HEADERS.length).setValues([MEMBER_HEADERS.map(h => member[h] ?? '')]);
-      return;
+      invalidateCache(); return;
     }
   }
   if (!member.id) member.id = 'm_' + Date.now();
   if (!member.createdAt) member.createdAt = now;
   sheet.appendRow(MEMBER_HEADERS.map(h => member[h] ?? ''));
+  invalidateCache();
 }
 
 function deleteMember(id) {
   const sheet = getOrCreateSheet(SH_MEMBERS, MEMBER_HEADERS);
   const data  = sheet.getDataRange().getValues();
   for (let i = data.length - 1; i >= 1; i--) {
-    if (String(data[i][0]) === String(id)) { sheet.deleteRow(i+1); return; }
+    if (String(data[i][0]) === String(id)) { sheet.deleteRow(i+1); invalidateCache(); return; }
   }
 }
 
