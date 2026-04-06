@@ -2180,36 +2180,36 @@ function renderCards(){
   fCards=d;
   document.getElementById('cnt').textContent=d.length+'件';
 
-  // スマホ（≤600px）は Eight 風リスト
-  if(window.innerWidth<=600){
-    document.getElementById('card-grid').style.display='none';
-    document.getElementById('eight-list').style.display='flex';
-    document.getElementById('kana-index-wrap').classList.remove('show');
-    renderEightList(d);
-    return;
-  } else {
-    document.getElementById('eight-list').style.display='none';
-  }
+  const grid = document.getElementById('card-grid');
+  const eightList = document.getElementById('eight-list');
+  const kanaWrap = document.getElementById('kana-index-wrap');
 
-  // あかさたなモードの切り替え
-  const kanaWrap=document.getElementById('kana-index-wrap');
-  const grid=document.getElementById('card-grid');
-  if(curS==='kana'){
-    grid.style.display='none';
+  // 1. あかさたなモード（スマホ・PC共通）
+  if (curS === 'kana') {
+    grid.style.display = 'none';
+    eightList.style.display = 'none';
     kanaWrap.classList.add('show');
     renderKanaList(d);
     return;
-  } else {
-    grid.style.display='';
-    kanaWrap.classList.remove('show');
   }
 
-  const g=document.getElementById('card-grid');
-  if(!d.length){g.innerHTML='<div class="empty-state"><div class="empty-ico"><span class="ms" style="font-size:36px;color:var(--border2)">inbox</span></div><div class="empty-txt">該当する名刺がありません</div></div>';return}
+  // 2. スマホの通常時（Eight風リスト）
+  kanaWrap.classList.remove('show');
+  if (window.innerWidth <= 600) {
+    grid.style.display = 'none';
+    eightList.style.display = 'flex';
+    renderEightList(d);
+    return;
+  }
+
+  // 3. PCの通常時（カードグリッド）
+  eightList.style.display = 'none';
+  grid.style.display = '';
+
+  if(!d.length){grid.innerHTML='<div class="empty-state"><div class="empty-ico"><span class="ms" style="font-size:36px;color:var(--border2)">inbox</span></div><div class="empty-txt">該当する名刺がありません</div></div>';return}
   const use2col=LS.g('pref-2col')!=='0';
-  g.style.gridTemplateColumns=use2col?'repeat(auto-fill,minmax(288px,1fr))':'1fr';
-  g.innerHTML=d.map((c,i)=>{
-    // 日付: exchangedAt（名刺交換日）優先、なければ createdAt
+  grid.style.gridTemplateColumns=use2col?'repeat(auto-fill,minmax(288px,1fr))':'1fr';
+  grid.innerHTML=d.map((c,i)=>{
     const dispDate = fmtDate(c.exchangedAt||c.createdAt||'');
     return `
     <div class="mc org-${c.org}" onclick="openDetail('${c.id}')" style="animation-delay:${Math.min(i*.03,.25)}s">
@@ -2278,14 +2278,19 @@ function getKanaGroup(name) {
 }
 
 function renderKanaList(data) {
-  // 名前でソート
-  const sorted = [...data].sort((a,b) => a.name.localeCompare(b.name,'ja'));
+  // ふりがな（kana）優先でソート、なければ名前でソート
+  const sorted = [...data].sort((a,b) => {
+    const valA = a.kana || a.nameKana || a.name || '';
+    const valB = b.kana || b.nameKana || b.name || '';
+    return valA.localeCompare(valB, 'ja');
+  });
 
   // グループ化
   const groups = {};
   KANA_ROWS.forEach(k => groups[k] = []);
   sorted.forEach(c => {
-    const g = getKanaGroup(c.name);
+    // kana から頭文字を判定
+    const g = getKanaGroup(c.kana || c.nameKana || c.name);
     if (groups[g]) groups[g].push(c);
     else groups['#'].push(c);
   });
@@ -2307,16 +2312,16 @@ function renderKanaList(data) {
       const ini = card.name ? card.name.split(' ').map(p=>p[0]).join('').slice(0,2) : '?';
       const bg = colors[Math.abs(card.id.charCodeAt(0))%colors.length];
       const imgSrc = card.imageUrl || card.imageData || '';
-      return `<div class="kana-card-row" onclick="openDetail('${card.id}')">
+      return \`<div class="kana-card-row" onclick="openDetail('${card.id}')">
         <div class="kana-avatar" style="background:${bg}">
-          ${imgSrc ? `<img src="${imgSrc}" alt="">` : `<span>${X(ini)}</span>`}
+          ${imgSrc ? \`<img src="${imgSrc}" alt="">\` : \`<span>${X(ini)}</span>\`}
         </div>
         <div class="kana-info">
           <div class="kana-name">${X(card.name)}</div>
           <div class="kana-sub">${X(card.company||'')}${card.dept?' · '+X(card.dept):''}</div>
         </div>
         <div class="kana-org ${card.org}">${getOrgName(card.org)}</div>
-      </div>`;
+      </div>\`;
     }).join('')}
   `).join('');
 }
