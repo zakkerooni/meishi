@@ -1780,6 +1780,30 @@ const DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbwUXXxnKKVuXiLTJH
 const LS={g:k=>localStorage.getItem(k)||(k==='gasUrl'?DEFAULT_GAS_URL:''),s:(k,v)=>localStorage.setItem(k,v)};
 const X=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
+// ════════ GAS 通信ヘルパー ════════
+// appToken + Content-Type を自動付与してPOSTする
+function gasPost(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...body, appToken: LS.g('appToken') })
+  });
+}
+
+// ════════ cardsCache 保存ヘルパー ════════
+// base64 imageData をキャッシュに含めない（LocalStorage 5MB 上限対策）
+function saveCardsCache(cards) {
+  const slim = cards.map(c => {
+    const { imageData, imageData2, ...rest } = c;
+    return rest;
+  });
+  try {
+    LS.s('cardsCache', JSON.stringify(slim));
+  } catch(e) {
+    console.warn('cardsCache 保存失敗（容量超過の可能性）:', e.message);
+  }
+}
+
 // ════════ TABS ════════
 function switchTab(page,el){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -2024,18 +2048,18 @@ async function saveMemoModal() {
   card.memo = document.getElementById('memo-textarea').value.trim();
   card.memoPhotos = _memoPhotos.slice();
 
-  // localStorageに保存
+  // localStorageに保存（base64画像は除外してサイズ節約）
   const idx = allCards.findIndex(c=>c.id===curDetailId);
   if(idx>=0) allCards[idx]=card;
-  LS.s('cardsCache',JSON.stringify(allCards));
+  saveCardsCache(allCards);
 
   // GASにも同期（テキストメモのみ、写真はlocalStorage）
   const gasUrl=LS.g('gasUrl');
   if(gasUrl){
     try{
-      await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:'update',card:{
+      await gasPost(gasUrl,{action:'update',card:{
         ...card, memoPhotos: undefined, imageData: undefined, imageData2: undefined
-      }})});
+      }});
     }catch(e){ console.warn('memo sync:', e.message); }
   }
 
@@ -2627,11 +2651,11 @@ async function bulkStartOCR() {
         };
 
         allCards.unshift(card);
-        LS.s('cardsCache', JSON.stringify(allCards));
+        saveCardsCache(allCards); // base64除外して保存
 
         if (gasUrl) {
           try {
-            const r2 = await fetch(gasUrl, {method:'POST', body:JSON.stringify({action:'add', card})});
+            const r2 = await gasPost(gasUrl, {action:'add', card});
             const d2 = await r2.json().catch(()=>({}));
             console.log('GAS save:', card.name, d2.ok ? 'OK' : d2);
           } catch(e) { console.warn('GAS err:', e.message); }
@@ -3571,15 +3595,26 @@ async function saveCard(){
     return zip?(zip.startsWith('〒')?zip:('〒'+zip))+(addr?' '+addr:''):addr;
   })(),url:document.getElementById('f-url').value.trim(),memo:document.getElementById('f-memo').value.trim(),org:document.getElementById('f-org').value,owner:document.getElementById('f-owner').value.trim(),exchangedAt:document.getElementById('f-exchangedAt')?.value||'',imageData:captImg,imageData2:captImgBack||'',createdAt:fmtDate(new Date().toISOString())};
   const gasUrl=LS.g('gasUrl');
-  if(gasUrl){try{await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:isEdit?'update':'add',card})})}catch{toast('GAS保存エラー（ローカルのみ更新）','err')}}
+  let gasImageUrl = '', gasImageUrl2 = '';
+  if(gasUrl){
+    try{
+      const r = await gasPost(gasUrl,{action:isEdit?'update':'add',card});
+      const d = await r.json().catch(()=>({}));
+      // GAS が Drive にアップロードした URL を受け取る
+      if(d.imageUrl)  gasImageUrl  = d.imageUrl;
+      if(d.imageUrl2) gasImageUrl2 = d.imageUrl2;
+    }catch{toast('GAS保存エラー（ローカルのみ更新）','err')}
+  }
   const idx=allCards.findIndex(c=>c.id===card.id);
-  // imageUrl = Drive URL（GAS経由）/ imageData = ローカルbase64（GAS未接続時）
+  // imageUrl = Drive URL（GAS経由）/ imageData = ローカルbase64（GAS未接続時の表示用・キャッシュには含めない）
   const localImg = typeof captImg==='string'&&captImg.startsWith('data:') ? captImg : '';
   const saved={...card,
-    imageUrl: allCards[idx]?.imageUrl || '',   // GASからのDrive URLは保持
-    imageData: localImg || allCards[idx]?.imageData || '',  // base64はローカルに保存
+    imageUrl:  gasImageUrl  || allCards[idx]?.imageUrl  || '',
+    imageUrl2: gasImageUrl2 || allCards[idx]?.imageUrl2 || '',
+    imageData: localImg || allCards[idx]?.imageData || '', // 表示用一時保持（キャッシュには含めない）
   };
   if(idx>=0)allCards[idx]=saved;else allCards.unshift(saved);
+  saveCardsCache(allCards); // base64除外して保存
   if(typeof continueReg !== 'undefined' && continueReg) {
     // 連続登録: フォームをリセットして次の名刺へ
     continueReg = false;
@@ -3721,7 +3756,7 @@ async function doImport(){
     if(!hasName&&!hasCo){skip++;continue}
     if(!card.company)card.company='（会社名なし）';
     if(!card.name)card.name='（氏名なし）';
-    if(gasUrl){try{await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:'add',card})})}catch{}}
+    if(gasUrl){try{await gasPost(gasUrl,{action:'add',card})}catch{}}
     allCards.unshift({...card});ok++;
     // small delay to avoid rate limiting
     if(ok%10===0)await new Promise(r=>setTimeout(r,200));
@@ -3748,10 +3783,11 @@ async function syncFromCloud() {
   const gasUrl = LS.g('gasUrl');
   if (!gasUrl) return;
   try {
-    // 設定・メンバー・カードを並列取得（直列より大幅に速い）
+    // 設定・メンバー・カードを並列取得（POST必須: doGetは遮断済み）
+    const appToken = LS.g('appToken');
     const [syncRes, listRes] = await Promise.all([
-      fetch(gasUrl + '?action=syncAll', {cache:'no-store', mode:'cors'}),
-      fetch(gasUrl + '?action=list',    {cache:'no-store', mode:'cors'}),
+      gasPost(gasUrl, { action: 'syncAll' }),
+      gasPost(gasUrl, { action: 'list' }),
     ]);
     const [data, listData] = await Promise.all([syncRes.json(), listRes.json()]);
     console.log('syncFromCloud raw:', {syncOk: data.ok, listCards: listData.cards?.length, dataCards: data.cards?.length});
@@ -3835,7 +3871,7 @@ function applyCloudConfig(cfg) {
 
 async function saveConfigToCloud(config) {
   const gasUrl=LS.g('gasUrl'); if(!gasUrl)return;
-  try { await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:'saveConfig',config})}); }
+  try { await gasPost(gasUrl,{action:'saveConfig',config}); }
   catch(e){ console.warn('saveConfigToCloud:',e.message); }
 }
 
@@ -3923,7 +3959,7 @@ async function saveMember(){
   saveMembers();
   // スプシにも同期
   const gasUrl=LS.g('gasUrl');
-  if(gasUrl){try{await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:'saveMember',member:m})})}catch{}}
+  if(gasUrl){try{await gasPost(gasUrl,{action:'saveMember',member:m})}catch{}}
   closeM('member-modal');renderMembers();toast('メンバーを保存しました ✓','ok');
 }
 
@@ -3936,7 +3972,7 @@ async function verifyAdmin(){
   const gasUrl=LS.g('gasUrl');
   if(gasUrl){
     try{
-      const r=await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:'verifyAdmin',email})});
+      const r=await fetch(gasUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verifyAdmin',email})});
       const d=await r.json();
       if(d.isAdmin){ grantAdmin(); return; }
       toast('認証できませんでした','err'); return;
@@ -4418,10 +4454,7 @@ async function saveMyPage(){
       profile: JSON.stringify(profile),
     };
     try {
-      const res = await fetch(gasUrl, {
-        method: 'POST',
-        body: JSON.stringify({ action:'saveMember', member })
-      });
+      const res = await gasPost(gasUrl, { action:'saveMember', member });
       const result = await res.json().catch(()=>({}));
       if(result.ok !== false) {
         currentUser.name = name; currentUser.org = org; currentUser.profile = profile;
@@ -4566,12 +4599,20 @@ async function verifyAndLogin({ email, name, picture, password }) {
     const gasUrl = LS.g('gasUrl');
     const res = await fetch(gasUrl, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'verifyAdmin', email, password: password||'' })
     });
     const data = await res.json();
 
-    // GASのverifyMemberを呼ぶ（全メンバー照合）
-    const membersRes = await fetch(gasUrl + '?action=getMembers');
+    // ログイン成功時に appToken をローカルに保存（以降の全リクエストで使用）
+    if (data.appToken) LS.s('appToken', data.appToken);
+
+    // メンバー一覧を POST で取得（GETは doGet で遮断されているため）
+    const membersRes = await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'getMembers', appToken: data.appToken || LS.g('appToken') })
+    });
     const membersData = await membersRes.json();
     const members = membersData.members || [];
     const matched = members.find(m =>
