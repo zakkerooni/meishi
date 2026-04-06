@@ -2634,11 +2634,23 @@ async function bulkStartOCR() {
         saveCardsCache(allCards);
 
         if (gasUrl) {
-          try {
-            const r2 = await gasPost(gasUrl, {action:'add', card});
-            const d2 = await r2.json().catch(()=>({}));
-            if (!d2.ok) console.warn('GAS save failed:', d2);
-          } catch(e) { console.warn('GAS err:', e.message); }
+          const tok = LS.g('appToken');
+          if (!tok) {
+            toast(`⚠️ appTokenが見つかりません。一度ログアウト→再ログインしてください`, 'err');
+          } else {
+            try {
+              const r2 = await gasPost(gasUrl, {action:'add', card});
+              const d2 = await r2.json().catch(()=>({}));
+              if (!d2.ok) {
+                const errMsg = d2.error || JSON.stringify(d2);
+                toast(`⚠️ GAS保存失敗: ${errMsg}`, 'err');
+                console.error('GAS save failed:', d2);
+              }
+            } catch(e) {
+              toast(`⚠️ GAS通信エラー: ${e.message}`, 'err');
+              console.error('GAS err:', e);
+            }
+          }
         }
         saved++;
         item.status = 'done';
@@ -3491,10 +3503,6 @@ async function ocrGemini(apiKey, model, b64, mimeType) {
         { text: JP_MEISHI_PROMPT }
       ]
     }],
-    generationConfig: {
-      temperature: 0.1,
-      maxOutputTokens: 2048
-    },
     // Gemini 2.5系の思考モード（Thinking）をOFFにしてJSON出力を安定させる
     generationConfig: {
       temperature: 0.1,
