@@ -1573,6 +1573,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
         </div>
         <input type="file" id="fi-back" accept="image/*" style="display:none" onchange="handleFileBack(event)">
       </div>
+      
+      <div id="delete-btn-wrap" style="display:none; padding:0 16px 16px; text-align:center;">
+        <button type="button" onclick="deleteCurrentCard()" style="width:100%; padding:12px; background:var(--err-bg); color:var(--err); border:1px solid #fecaca; border-radius:var(--r-lg); font-size:14px; font-weight:600; cursor:pointer; font-family:var(--font); display:flex; align-items:center; justify-content:center; gap:6px;">
+          <span class="ms" style="font-size:18px">delete</span> この名刺を削除する
+        </button>
+      </div>
+      
       <div class="reg-action-bar">
         <button onclick="toS1()" style="flex:0 0 auto;padding:12px 16px;border-radius:var(--r-lg);background:var(--bg2);border:1px solid var(--border);cursor:pointer;font-family:var(--font);font-size:13px;color:var(--text3)">
           <span class="ms sm">arrow_back</span>
@@ -1789,6 +1796,38 @@ function gasPost(url, body) {
     method: 'POST',
     body: JSON.stringify({ ...body, appToken: LS.g('appToken') })
   });
+ }
+  
+  // 名刺の削除処理
+async function deleteCurrentCard() {
+  if (!confirm('本当にこの名刺を削除しますか？\n（この操作は取り消せません）')) return;
+  
+  const id = curDetailId;
+  if (!id) return;
+
+  // 1. ローカルのデータから消す（即時反映）
+  allCards = allCards.filter(c => c.id !== id);
+  saveCardsCache(allCards);
+  renderCards();
+  buildOwChips(); 
+  buildOrgChips(); 
+  updateMyStats();
+
+  // 2. モーダルを閉じる
+  closeM('reg-modal');
+  closeM('detail-modal');
+  toast('名刺を削除しました', 'ok');
+
+  // 3. GAS側に削除リクエストを送信
+  const gasUrl = LS.g('gasUrl');
+  if (gasUrl) {
+    try {
+      await gasPost(gasUrl, { action: 'deleteCard', id: id });
+    } catch (e) {
+      console.warn('削除の同期エラー:', e);
+      toast('ローカルで削除しましたが、クラウド同期に失敗しました', 'err');
+    }
+  }
 }
 
 // appToken が期限切れ・不一致の場合、保存済みメールでサイレント再取得する
@@ -3121,6 +3160,8 @@ function editCard(){
   // 住所を郵便番号と住所に分解
   const addrFull = c.addr||'';
   const zipMatch = addrFull.match(/^〒?(\d{3}-?\d{4})\s*(.*)/);
+  const delWrap = document.getElementById('delete-btn-wrap');
+  if (delWrap) delWrap.style.display = 'block';
   if(zipMatch){
     const zEl=document.getElementById('f-zip'); if(zEl) zEl.value=zipMatch[1];
     const aEl=document.getElementById('f-addr'); if(aEl) aEl.value=zipMatch[2];
@@ -3140,6 +3181,8 @@ function openRegModal(){
   _regOcrDone=false;
   // 表面エリアをリセット
   const capArea=document.getElementById('cap-area');
+  const delWrap = document.getElementById('delete-btn-wrap');
+  if (delWrap) delWrap.style.display = 'none';
   if(capArea){
     capArea.style.cursor='pointer';
     capArea.innerHTML='<div class="reg-preview-placeholder" style="width:100%"><span class="ms" style="font-size:40px;color:var(--border2)">photo_camera</span><span style="font-size:13px;color:var(--text3)">タップして写真を選択</span><span style="font-size:11px;color:var(--border2)">または下のボタンからカメラ起動</span></div>';
@@ -4080,7 +4123,8 @@ async function verifyAdmin(){
   const gasUrl=LS.g('gasUrl');
   if(gasUrl){
     try{
-      const r=await fetch(gasUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verifyAdmin',email})});
+      const r=await fetch(gasUrl,{method:'POST',body:JSON.stringify({action:'verifyAdmin',email})});
+      const d=await r.json(); // ← 💡さっき消えちゃってた行を復活！
       if(d.isAdmin){ grantAdmin(); return; }
       toast('認証できませんでした','err'); return;
     }catch{/* fallthrough to local */}
