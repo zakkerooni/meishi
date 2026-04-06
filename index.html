@@ -2353,7 +2353,7 @@ async function guessKana(name) {
   try {
     let kana = '';
     if (geminiKey) {
-      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+geminiKey,{
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+geminiKey,{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:50}})
       });
@@ -2585,13 +2585,16 @@ async function bulkStartOCR() {
           result = await ocrGemini(gKey, 'gemini-2.5-flash', b64, mt);
           usedEngine = 'Gemini 2.5 Flash';
         } catch(e) {
-          console.warn(`画像${i+1} Gemini 2.5失敗、2.0にフォールバック:`, e.message);
+          // 2.5 失敗時のエラーを lastError に保持しつつ 2.0 にフォールバック
+          lastError = `2.5: ${e.message}`;
+          console.warn(`画像${i+1} Gemini 2.5失敗:`, e.message);
           try {
             result = await ocrGemini(gKey, 'gemini-2.0-flash', b64, mt);
             usedEngine = 'Gemini 2.0 Flash';
+            lastError = ''; // 2.0 で成功したのでリセット
           } catch(e2) {
+            lastError = `2.5: ${e.message} / 2.0: ${e2.message}`;
             console.warn(`画像${i+1} Gemini 2.0も失敗:`, e2.message);
-            lastError = e2.message;
           }
         }
       }
@@ -2832,7 +2835,7 @@ async function regAutoOCR(dataUrl) {
     let rawText = '';
     if(geminiKey) {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
         {method:'POST',headers:{'Content-Type':'application/json'},
          body:JSON.stringify({contents:[{parts:[{inline_data:{mime_type:mt,data:b64}},{text:prompt}]}],
            generationConfig:{temperature:0.05,maxOutputTokens:1024}})}
@@ -3488,7 +3491,16 @@ async function ocrGemini(apiKey, model, b64, mimeType) {
         { text: JP_MEISHI_PROMPT }
       ]
     }],
-    generationConfig: { temperature: 0.1, maxOutputTokens: 800 }
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: 2048
+    },
+    // Gemini 2.5系の思考モード（Thinking）をOFFにしてJSON出力を安定させる
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: 2048,
+      thinkingConfig: { thinkingBudget: 0 }
+    }
   };
   const res = await fetch(url, {
     method: 'POST',
@@ -3501,7 +3513,11 @@ async function ocrGemini(apiKey, model, b64, mimeType) {
     throw new Error(`Gemini ${res.status}: ${err.error?.message||res.statusText}`);
   }
   const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  // Thinking モデルは parts[0] が思考テキスト（thought:true）の場合があるため
+  // thought フラグのない最初のパートを探す
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  const text = (parts.find(p => !p.thought)?.text) || parts[0]?.text || '';
+  if (!text) throw new Error('Gemini: レスポンスが空です');
   return parseOcrJson(text);
 }
 
@@ -3536,10 +3552,26 @@ async function ocrClaude(apiKey, b64, mimeType) {
   return parseOcrJson(text);
 }
 
-// ── JSON パース（マークダウン囲みに対応） ──
+// ── JSON パース（マークダウン・思考テキスト・前後の説明文に対応） ──
 function parseOcrJson(text) {
-  const clean = text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'');
-  return JSON.parse(clean);
+  if (!text) throw new Error('empty text');
+  // 1. マークダウンコードブロックを除去
+  let clean = text.trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'').trim();
+  // 2. そのままパースできれば返す
+  try { return JSON.parse(clean); } catch(e) {}
+  // 3. テキスト内から {} を抽出して試みる（思考テキストや前後の説明を除去）
+  const objMatch = clean.match(/\{[\s\S]*\}/);
+  if (objMatch) {
+    try { return JSON.parse(objMatch[0]); } catch(e) {}
+  }
+  // 4. 行ごとにJSONらしい行を探す
+  for (const line of clean.split('\n')) {
+    const t = line.trim();
+    if (t.startsWith('{') && t.endsWith('}')) {
+      try { return JSON.parse(t); } catch(e) {}
+    }
+  }
+  throw new Error('JSON parse failed: ' + clean.slice(0, 100));
 }
 
 // ── キー未設定時のガイド ──
