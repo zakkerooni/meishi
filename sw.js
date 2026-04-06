@@ -1,4 +1,4 @@
-const CACHE = 'meishi-v4';
+const CACHE = 'meishi-v5';
 const ASSETS = ['./', './index.html', '/manifest.json'];
 
 self.addEventListener('install', e => {
