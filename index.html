@@ -2312,16 +2312,16 @@ function renderKanaList(data) {
       const ini = card.name ? card.name.split(' ').map(p=>p[0]).join('').slice(0,2) : '?';
       const bg = colors[Math.abs(card.id.charCodeAt(0))%colors.length];
       const imgSrc = card.imageUrl || card.imageData || '';
-      return \`<div class="kana-card-row" onclick="openDetail('${card.id}')">
+      return `<div class="kana-card-row" onclick="openDetail('${card.id}')">
         <div class="kana-avatar" style="background:${bg}">
-          ${imgSrc ? \`<img src="${imgSrc}" alt="">\` : \`<span>${X(ini)}</span>\`}
+          ${imgSrc ? `<img src="${imgSrc}" alt="">` : `<span>${X(ini)}</span>`}
         </div>
         <div class="kana-info">
           <div class="kana-name">${X(card.name)}</div>
           <div class="kana-sub">${X(card.company||'')}${card.dept?' · '+X(card.dept):''}</div>
         </div>
         <div class="kana-org ${card.org}">${getOrgName(card.org)}</div>
-      </div>\`;
+      </div>`;
     }).join('')}
   `).join('');
 }
@@ -4629,7 +4629,7 @@ async function saveMyPage(){
 }
 
 // ════════ GOOGLE AUTH ════════
-const GOOGLE_CLIENT_ID = '935810257127-d25f8te7pacsqqonrbvbhhsgc5tj4oiq.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = ''; // ← Google Cloud ConsoleのクライアントIDを入れる（任意）
 
 let currentUser = null;
 
@@ -4676,8 +4676,6 @@ function initGoogleAuth() {
   }
 
   // Google One Tap / Sign In with Google
-  // メール+パスワードフォームをクリアしてからGoogleボタンをレンダリング
-  document.getElementById('g-signin-btn').innerHTML = '';
   google.accounts.id.initialize({
     client_id: GOOGLE_CLIENT_ID,
     callback: handleGoogleCredential,
