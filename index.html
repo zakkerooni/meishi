@@ -4676,6 +4676,8 @@ function initGoogleAuth() {
   }
 
   // Google One Tap / Sign In with Google
+  // メール+パスワードフォームをクリアしてからGoogleボタンをレンダリング
+  document.getElementById('g-signin-btn').innerHTML = '';
   google.accounts.id.initialize({
     client_id: GOOGLE_CLIENT_ID,
     callback: handleGoogleCredential,
