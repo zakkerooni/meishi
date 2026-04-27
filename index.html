@@ -1789,10 +1789,13 @@ const X=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 
 function fixDriveUrl(url) {
   if (!url) return url;
-  const m = url.match(/[?&]id=([^&#]+)/);
-  if (m && url.includes('drive.google.com')) {
-    return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1200';
-  }
+  if (!url.includes('drive.google.com')) return url;
+  // /d/FILE_ID/ 形式
+  const pathM = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+  if (pathM) return 'https://drive.google.com/thumbnail?id=' + pathM[1] + '&sz=w1200';
+  // ?id= または &id= 形式
+  const paramM = url.match(/[?&]id=([^&#]+)/);
+  if (paramM) return 'https://drive.google.com/thumbnail?id=' + paramM[1] + '&sz=w1200';
   return url;
 }
 
