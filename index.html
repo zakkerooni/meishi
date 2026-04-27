@@ -1787,6 +1787,15 @@ const DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbwUXXxnKKVuXiLTJH
 const LS={g:k=>localStorage.getItem(k)||(k==='gasUrl'?DEFAULT_GAS_URL:''),s:(k,v)=>localStorage.setItem(k,v)};
 const X=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
+function fixDriveUrl(url) {
+  if (!url) return url;
+  const m = url.match(/[?&]id=([^&#]+)/);
+  if (m && url.includes('drive.google.com')) {
+    return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1200';
+  }
+  return url;
+}
+
 // ════════ GAS 通信ヘルパー ════════
 // Content-Type: application/json はCORSプリフライト(OPTIONS)を引き起こし
 // GASがOPTIONSを処理できないため "Failed to fetch" になる。
@@ -2311,7 +2320,7 @@ function renderKanaList(data) {
     ${groups[k].map((card,i) => {
       const ini = card.name ? card.name.split(' ').map(p=>p[0]).join('').slice(0,2) : '?';
       const bg = colors[Math.abs(card.id.charCodeAt(0))%colors.length];
-      const imgSrc = card.imageUrl || card.imageData || '';
+      const imgSrc = fixDriveUrl(card.imageUrl) || card.imageData || '';
       return `<div class="kana-card-row" onclick="openDetail('${card.id}')">
         <div class="kana-avatar" style="background:${bg}">
           ${imgSrc ? `<img src="${imgSrc}" alt="">` : `<span>${X(ini)}</span>`}
@@ -2396,7 +2405,7 @@ function renderEightList(data) {
   el.innerHTML = Object.entries(groups).map(([ym, cards]) => `
     <div class="el-month">${ym}</div>
     ${cards.map((card,i) => {
-      const imgSrc = card.imageUrl||card.imageData||'';
+      const imgSrc = fixDriveUrl(card.imageUrl)||card.imageData||'';
       const kana = card.kana||card.nameKana||'';
       return `<div class="el-row" onclick="openDetail('${card.id}')" style="animation-delay:${Math.min(i*.02,.2)}s">
         <div class="el-org-dot" style="background:${getOrgColor(card.org)}"></div>
@@ -3074,8 +3083,8 @@ function openDetail(id){
   dau.style.opacity = c.url?'1':'0.35'; dau.style.pointerEvents = c.url?'':'none';
 
   // ── 名刺画像 ──
-  const frontSrc = c.imageUrl||c.imageData||'';
-  const backSrc = c.imageUrl2||c.imageData2||'';
+  const frontSrc = fixDriveUrl(c.imageUrl)||c.imageData||'';
+  const backSrc = fixDriveUrl(c.imageUrl2)||c.imageData2||'';
   window._detailImgSides = [frontSrc,backSrc].filter(Boolean);
   const imgWrap = document.getElementById('d-img-wrap-eight');
   const ph = document.getElementById('d-img-placeholder');
