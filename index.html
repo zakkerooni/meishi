@@ -2847,20 +2847,56 @@ async function bulkStartOCR() {
 }
 
 // ════════ 一括再トリミング ════════
+
+// Drive URL から fileId を抽出
+function extractDriveFileId(url) {
+  if (!url) return null;
+  const m = url.match(/[?&]id=([^&#]+)/);
+  return m ? m[1] : null;
+}
+
+// GAS 経由で Drive 画像を base64 取得
+async function fetchImageViaGas(gasUrl, fileId) {
+  const appToken = LS.g('appToken') || '';
+  const res = await gasPostWithRetry(gasUrl, { action:'getImageData', fileId, appToken });
+  return res?.data?.dataUrl || null;
+}
+
+// 1枚クロップして更新（表面または裏面）
+async function cropOneSide(dataUrl, geminiKey, prompt) {
+  const b64 = dataUrl.split(',')[1];
+  const mt  = dataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+    { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contents:[{parts:[{inline_data:{mime_type:mt,data:b64}},{text:prompt}]}],
+        generationConfig:{temperature:0, maxOutputTokens:64} }) }
+  );
+  const d = await res.json();
+  const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+  const m = raw.match(/\{[\s\S]*\}/);
+  const r = m ? JSON.parse(m[0]) : {};
+  if (!r.cropBox) return dataUrl;
+  return await applyAICrop(dataUrl, r.cropBox);
+}
+
 async function bulkReCrop() {
   const geminiKey = LS.g('geminiKey') || LS.g('geminiKeyUser');
   if (!geminiKey) {
     toast('Gemini APIキーが未設定です（マイページで設定してください）', 'err');
     return;
   }
+  const gasUrl = LS.g('gasUrl') || '';
 
-  // imageData（base64）があるカードのみ対象
+  // 画像があるカードすべて対象（imageData base64 OR imageUrl Drive）
   const targets = allCards.filter(c =>
-    (c.imageData && c.imageData.startsWith('data:')) ||
-    (c.imageData2 && c.imageData2.startsWith('data:'))
+    (c.imageData  && c.imageData.startsWith('data:'))  ||
+    (c.imageData2 && c.imageData2.startsWith('data:')) ||
+    (c.imageUrl   && c.imageUrl.includes('drive.google.com')) ||
+    (c.imageUrl2  && c.imageUrl2.includes('drive.google.com'))
   );
   if (!targets.length) {
-    toast('再トリミング対象の画像がありません', '');
+    toast('画像付きの名刺が見つかりません', '');
     return;
   }
 
@@ -2868,14 +2904,13 @@ async function bulkReCrop() {
   const wrap   = document.getElementById('recrop-progress-wrap');
   const bar    = document.getElementById('recrop-bar');
   const status = document.getElementById('recrop-status');
-  const gasUrl = LS.g('gasUrl') || '';
 
   btn.classList.add('dis');
   wrap.style.display = 'block';
   bar.style.width = '0%';
 
-  let done = 0, cropped = 0;
-  const prompt = `この名刺画像の名刺領域の座標を返してください。\n{"cropBox":{"x1":0,"y1":0,"x2":100,"y2":100}}\n- cropBox: 名刺が写っている領域（画像全体=100×100の%値）\n- 名刺が画面いっぱいなら x1=0,y1=0,x2=100,y2=100\n- JSONのみ返してください（説明文不要）`;
+  let done = 0, cropped = 0, skipped = 0;
+  const prompt = `この名刺画像の名刺領域の座標を返してください。\n{"cropBox":{"x1":0,"y1":0,"x2":100,"y2":100}}\n- 名刺が画面いっぱいなら x1=0,y1=0,x2=100,y2=100\n- JSONのみ返してください`;
 
   for (const card of targets) {
     const label = card.name || card.company || card.id;
@@ -2885,57 +2920,39 @@ async function bulkReCrop() {
     let changed = false;
 
     // ── 表面 ──
-    if (card.imageData && card.imageData.startsWith('data:')) {
-      try {
-        const b64 = card.imageData.split(',')[1];
-        const mt  = card.imageData.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-          { method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({contents:[{parts:[{inline_data:{mime_type:mt,data:b64}},{text:prompt}]}],
-              generationConfig:{temperature:0,maxOutputTokens:64}}) }
-        );
-        const d = await res.json();
-        const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-        const m = raw.match(/\{[\s\S]*\}/);
-        const r = m ? JSON.parse(m[0]) : {};
-        if (r.cropBox) {
-          const cropped_ = await applyAICrop(card.imageData, r.cropBox);
-          if (cropped_ !== card.imageData) { card.imageData = cropped_; changed = true; }
-        }
-      } catch(e) { console.warn('再トリミング(表)失敗:', card.id, e.message); }
-      await new Promise(r => setTimeout(r, 500)); // レート制限対策
-    }
+    try {
+      let dataUrl = card.imageData && card.imageData.startsWith('data:') ? card.imageData : null;
+      // base64 がなければ GAS 経由で Drive から取得
+      if (!dataUrl && card.imageUrl && gasUrl) {
+        const fid = extractDriveFileId(card.imageUrl);
+        if (fid) dataUrl = await fetchImageViaGas(gasUrl, fid);
+      }
+      if (dataUrl) {
+        const newUrl = await cropOneSide(dataUrl, geminiKey, prompt);
+        if (newUrl !== dataUrl) { card.imageData = newUrl; changed = true; }
+        await new Promise(r => setTimeout(r, 600));
+      }
+    } catch(e) { console.warn('再トリミング(表)失敗:', card.id, e.message); }
 
     // ── 裏面 ──
-    if (card.imageData2 && card.imageData2.startsWith('data:')) {
-      try {
-        const b64 = card.imageData2.split(',')[1];
-        const mt  = card.imageData2.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-          { method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({contents:[{parts:[{inline_data:{mime_type:mt,data:b64}},{text:prompt}]}],
-              generationConfig:{temperature:0,maxOutputTokens:64}}) }
-        );
-        const d = await res.json();
-        const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-        const m = raw.match(/\{[\s\S]*\}/);
-        const r = m ? JSON.parse(m[0]) : {};
-        if (r.cropBox) {
-          const cropped_ = await applyAICrop(card.imageData2, r.cropBox);
-          if (cropped_ !== card.imageData2) { card.imageData2 = cropped_; changed = true; }
-        }
-      } catch(e) { console.warn('再トリミング(裏)失敗:', card.id, e.message); }
-      await new Promise(r => setTimeout(r, 500));
-    }
+    try {
+      let dataUrl2 = card.imageData2 && card.imageData2.startsWith('data:') ? card.imageData2 : null;
+      if (!dataUrl2 && card.imageUrl2 && gasUrl) {
+        const fid = extractDriveFileId(card.imageUrl2);
+        if (fid) dataUrl2 = await fetchImageViaGas(gasUrl, fid);
+      }
+      if (dataUrl2) {
+        const newUrl2 = await cropOneSide(dataUrl2, geminiKey, prompt);
+        if (newUrl2 !== dataUrl2) { card.imageData2 = newUrl2; changed = true; }
+        await new Promise(r => setTimeout(r, 600));
+      }
+    } catch(e) { console.warn('再トリミング(裏)失敗:', card.id, e.message); }
 
     if (changed) {
       cropped++;
       if (gasUrl) {
-        try {
-          await gasPostWithRetry(gasUrl, { action:'update', card });
-        } catch(e) { console.warn('GAS更新失敗:', card.id, e.message); }
+        try { await gasPostWithRetry(gasUrl, { action:'update', card }); }
+        catch(e) { console.warn('GAS更新失敗:', card.id, e.message); }
       }
     }
 
@@ -2946,7 +2963,7 @@ async function bulkReCrop() {
   bar.style.width = '100%';
   saveCardsCache(allCards);
   renderCards();
-  status.innerHTML = `<span style="color:var(--ok)">✓ 完了：${targets.length}件中 ${cropped}件をトリミングしました</span>`;
+  status.innerHTML = `<span style="color:var(--ok)">✓ 完了：${targets.length}件中 ${cropped}件をトリミング</span>`;
   btn.classList.remove('dis');
   toast(`${cropped}件の画像を再トリミングしました`, 'ok');
 }
