@@ -1769,6 +1769,40 @@ let allCards=[],fCards=[];
 let curF='all',curS='date-desc';
 let curDetailId=null,isEdit=false;
 let captImg=null;
+
+// Drive の uc?export=view URL を thumbnail URL に変換（旧形式の互換対応）
+function fixDriveUrl(url) {
+  if (!url) return url;
+  const m = url.match(/[?&]id=([^&#]+)/);
+  if (m && url.includes('drive.google.com')) {
+    return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1200';
+  }
+  return url;
+}
+
+function applyAICrop(dataUrl, cropBox) {
+  return new Promise(resolve => {
+    if (!cropBox) { resolve(dataUrl); return; }
+    const { x1=0, y1=0, x2=100, y2=100 } = cropBox;
+    // ほぼ全体（余白 2% 未満）なら不要
+    if (x1 < 2 && y1 < 2 && x2 > 98 && y2 > 98) { resolve(dataUrl); return; }
+    const img = new Image();
+    img.onload = () => {
+      const W = img.naturalWidth, H = img.naturalHeight;
+      const pad = 0.015; // 1.5% 余白を加えてクロップ
+      const sx = Math.max(0, (x1/100 - pad) * W);
+      const sy = Math.max(0, (y1/100 - pad) * H);
+      const ex = Math.min(W, (x2/100 + pad) * W);
+      const ey = Math.min(H, (y2/100 + pad) * H);
+      const cv = document.createElement('canvas');
+      cv.width = ex - sx; cv.height = ey - sy;
+      cv.getContext('2d').drawImage(img, sx, sy, cv.width, cv.height, 0, 0, cv.width, cv.height);
+      resolve(cv.toDataURL('image/jpeg', 0.9));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
 let cropImg_,cropCv,cropCtx_;
 let cs={drag:false,h:null,sx:0,sy:0,sel:null,ix:0,iy:0,iw:0,ih:0};
 let members=[],editMId=null,avData=null,myAvData=null;
@@ -1786,18 +1820,6 @@ const APP_ICON = (() => {
 const DEFAULT_GAS_URL='https://script.google.com/macros/s/AKfycbwUXXxnKKVuXiLTJH0-O0lP7j8shTV5rT4Ag0uJcEPj6Xp8lCCHPwmQzfc_VW9MYbBW/exec';
 const LS={g:k=>localStorage.getItem(k)||(k==='gasUrl'?DEFAULT_GAS_URL:''),s:(k,v)=>localStorage.setItem(k,v)};
 const X=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
-function fixDriveUrl(url) {
-  if (!url) return url;
-  if (!url.includes('drive.google.com')) return url;
-  // /d/FILE_ID/ 形式
-  const pathM = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
-  if (pathM) return 'https://drive.google.com/thumbnail?id=' + pathM[1] + '&sz=w1200';
-  // ?id= または &id= 形式
-  const paramM = url.match(/[?&]id=([^&#]+)/);
-  if (paramM) return 'https://drive.google.com/thumbnail?id=' + paramM[1] + '&sz=w1200';
-  return url;
-}
 
 // ════════ GAS 通信ヘルパー ════════
 // Content-Type: application/json はCORSプリフライト(OPTIONS)を引き起こし
@@ -2741,6 +2763,10 @@ async function bulkStartOCR() {
         item.status = 'error';
       } else {
         console.log(`画像${i+1}: ${usedEngine} で認識 →`, result.name, result.company);
+        // AI クロップを適用（cropBox が返った場合）
+        let finalDataUrl = item.dataUrl;
+        if (result.cropBox) finalDataUrl = await applyAICrop(item.dataUrl, result.cropBox);
+
         const card = {
           id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
           company: result.company||'', dept: result.dept||'',
@@ -2750,7 +2776,7 @@ async function bulkStartOCR() {
           addr: result.addr||'', url: result.url||'',
           memo: [result.fax?'FAX:'+result.fax:'', result.sns?'SNS:'+result.sns:''].filter(Boolean).join(' / '),
           org: myOrg, owner: myName,
-          imageData: item.dataUrl,
+          imageData: finalDataUrl,
           imageData2: item.backDataUrl||'',
           exchangedAt: '',
           createdAt: fmtDate(new Date().toISOString())
@@ -2958,10 +2984,11 @@ async function regAutoOCR(dataUrl) {
     const b64 = dataUrl.split(',')[1];
     const mt  = dataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
     const prompt = `この名刺画像を読み取り、以下のJSON形式で返してください（1つのオブジェクト）。
-{"company":"","dept":"","name":"","nameKana":"","role":"","email":"","tel":"","mobile":"","zip":"","addr":"","url":""}
+{"company":"","dept":"","name":"","nameKana":"","role":"","email":"","tel":"","mobile":"","zip":"","addr":"","url":"","cropBox":{"x1":0,"y1":0,"x2":100,"y2":100}}
 - nameKana: ひらがな（推測でも可）
 - zip: 郵便番号（数字とハイフンのみ）
 - addr: 住所（郵便番号除く）
+- cropBox: 名刺領域の座標（画像全体=100×100の%値）。背景がある場合は名刺の四隅に合わせて。
 - JSONのみ返してください（説明文・\`\`\`不要）`;
 
     let rawText = '';
@@ -2995,6 +3022,20 @@ async function regAutoOCR(dataUrl) {
       r = m ? JSON.parse(m[0]) : {};
     } catch(e) { console.warn('OCR parse error:', rawText); }
 
+    // AI クロップを適用（cropBox が返った場合）
+    if (r.cropBox) {
+      const cropped = await applyAICrop(dataUrl, r.cropBox);
+      if (cropped !== dataUrl) {
+        captImg = cropped;
+        const capArea = document.getElementById('cap-area');
+        if (capArea) capArea.innerHTML =
+          `<img src="${cropped}" style="width:100%;max-height:38dvh;object-fit:contain">`;
+        const tf = document.getElementById('reg-thumb-front');
+        if (tf) tf.innerHTML =
+          `<img src="${cropped}" style="width:100%;height:100%;object-fit:cover">`;
+      }
+    }
+
     // フォームに反映
     const set = (id, val) => { const el=document.getElementById(id); if(el&&val) el.value=val; };
     set('f-company', r.company); set('f-dept', r.dept);
@@ -3016,7 +3057,7 @@ async function regAutoOCR(dataUrl) {
         try {
           const b64b = dataUrl.split(',')[1];
           const mtb  = dataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-          const promptb = `この名刺画像を読み取り、以下のJSON形式で返してください（1つのオブジェクト）。\n{"company":"","dept":"","name":"","nameKana":"","role":"","email":"","tel":"","mobile":"","zip":"","addr":"","url":""}\n- nameKana: ひらがな\n- zip: 数字とハイフンのみ\n- JSONのみ返してください`;
+          const promptb = `この名刺画像を読み取り、以下のJSON形式で返してください（1つのオブジェクト）。\n{"company":"","dept":"","name":"","nameKana":"","role":"","email":"","tel":"","mobile":"","zip":"","addr":"","url":"","cropBox":{"x1":0,"y1":0,"x2":100,"y2":100}}\n- nameKana: ひらがな\n- zip: 数字とハイフンのみ\n- cropBox: 名刺領域の%座標\n- JSONのみ返してください`;
           const resb = await fetch('https://api.anthropic.com/v1/messages', {
             method:'POST',
             headers:{'Content-Type':'application/json','x-api-key':claudeKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
@@ -3026,6 +3067,19 @@ async function regAutoOCR(dataUrl) {
           const rawb = db.content?.[0]?.text||'{}';
           const mb = rawb.match(/\{[\s\S]*\}/);
           const rb = mb ? JSON.parse(mb[0]) : {};
+          // AI クロップを適用（Claude リトライ）
+          if (rb.cropBox) {
+            const croppedB = await applyAICrop(dataUrl, rb.cropBox);
+            if (croppedB !== dataUrl) {
+              captImg = croppedB;
+              const capAreaB = document.getElementById('cap-area');
+              if (capAreaB) capAreaB.innerHTML =
+                `<img src="${croppedB}" style="width:100%;max-height:38dvh;object-fit:contain">`;
+              const tfB = document.getElementById('reg-thumb-front');
+              if (tfB) tfB.innerHTML =
+                `<img src="${croppedB}" style="width:100%;height:100%;object-fit:cover">`;
+            }
+          }
           const set2 = (id, val) => { const el=document.getElementById(id); if(el&&val) el.value=val; };
           set2('f-company',rb.company);set2('f-dept',rb.dept);set2('f-name',rb.name);
           set2('f-kana',rb.nameKana);set2('f-role',rb.role);set2('f-email',rb.email);
@@ -3518,6 +3572,7 @@ const JP_MEISHI_PROMPT = `あなたは日本の名刺OCRの専門家です。
 - addr: 住所（郵便番号〒から番地・ビル名まで）。郵便番号は「〒XXX-XXXX」形式。
 - url: ウェブサイトURL。SNSのURL・QRコードに記載のURLも含む。複数ある場合は最初の公式サイトを優先。
 - sns: Twitter/X・Instagram・FacebookなどのSNSアカウント（@含む）。カンマ区切り。
+- cropBox: 名刺が写っている領域の座標（画像全体を100×100とした%値）。名刺が画面いっぱいなら {"x1":0,"y1":0,"x2":100,"y2":100}。背景がある場合は名刺の四隅に合わせてください。
 
 【重要】
 - 縦書きの名刺にも対応してください
@@ -3525,7 +3580,7 @@ const JP_MEISHI_PROMPT = `あなたは日本の名刺OCRの専門家です。
 - nameKana以外は、推測や補完は禁止です。画像に記載のある情報のみ抽出してください
 
 以下のJSON形式のみで返してください（前後に説明文・マークダウン記法を一切付けないこと）:
-{"company":"","dept":"","name":"","nameKana":"","role":"","email":"","tel":"","fax":"","mobile":"","addr":"","url":"","sns":""}`;
+{"company":"","dept":"","name":"","nameKana":"","role":"","email":"","tel":"","fax":"","mobile":"","addr":"","url":"","sns":"","cropBox":{"x1":0,"y1":0,"x2":100,"y2":100}}`;
 
 async function runOCR() {
   if (!captImg) { toast('先に名刺画像を選択してください','err'); return; }
