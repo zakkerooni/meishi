@@ -2872,22 +2872,32 @@ async function cropOneSide(dataUrl, geminiKey) {
 必ず以下のJSON形式のみで返してください（説明・\`\`\`不要）:
 {"x1":左端%, "y1":上端%, "x2":右端%, "y2":下端%}`;
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-    { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ contents:[{parts:[{inline_data:{mime_type:mt,data:b64}},{text:cropPrompt}]}],
-        generationConfig:{temperature:0, maxOutputTokens:128} }) }
-  );
-  const d = await res.json();
-  const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-  console.log('[cropOneSide] Gemini raw:', raw);
+  // gemini-2.5-flash → 失敗時 gemini-2.0-flash にフォールバック
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+  let raw = null;
+  for (const model of models) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+        { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ contents:[{parts:[{inline_data:{mime_type:mt,data:b64}},{text:cropPrompt}]}],
+            generationConfig:{temperature:0.1, maxOutputTokens:128} }) }
+      );
+      const d = await res.json();
+      if (d.error) { console.warn(`[cropOneSide] ${model} error:`, d.error.message); continue; }
+      raw = d.candidates?.[0]?.content?.parts?.[0]?.text || null;
+      if (raw) { console.log(`[cropOneSide] ${model} raw:`, raw); break; }
+    } catch(e) { console.warn(`[cropOneSide] ${model} fetch error:`, e.message); }
+  }
+
+  if (!raw) { console.warn('[cropOneSide] 全モデル失敗'); return dataUrl; }
+
   let box = null;
   try {
     const m = raw.match(/\{[\s\S]*?\}/);
     const r = m ? JSON.parse(m[0]) : {};
-    // {"x1":...} 直接形式 OR {"cropBox":{...}} 形式どちらにも対応
     box = (r.x1 !== undefined) ? r : (r.cropBox || null);
-  } catch(e) { console.warn('[cropOneSide] parse error:', e); }
+  } catch(e) { console.warn('[cropOneSide] parse error:', raw); }
   console.log('[cropOneSide] box:', box);
   if (!box) return dataUrl;
   return await applyAICropForce(dataUrl, box);
@@ -2977,7 +2987,7 @@ async function bulkReCrop() {
           card.imageData = newUrl; changed = true;
           status.textContent = `[${done+1}/${targets.length}] ${label} — ✓ トリミング完了`;
         } else {
-          status.textContent = `[${done+1}/${targets.length}] ${label} — スキップ（すでに最適）`;
+          status.textContent = `[${done+1}/${targets.length}] ${label} — スキップ（Geminiが全体を名刺と判定 or APIエラー → Consoleを確認）`;
         }
         await new Promise(r => setTimeout(r, 600));
       }
