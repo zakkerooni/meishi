@@ -2887,11 +2887,8 @@ async function cropOneSide(dataUrl, geminiKey) {
   const small = await resizeForGemini(dataUrl, 1024);
   const b64 = small.split(',')[1];
   const mt  = small.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-  const cropPrompt = `この画像に名刺が写っています。名刺の四隅の座標を%で答えてください。
-背景（机・手・壁・テーブルクロスなど）が少しでも写っている場合は、名刺の縁ぴったりに座標を合わせてください。
-名刺が画像の端まで完全にはみ出していてトリミング不要な場合のみ 0,0,100,100 にしてください。
-必ず以下のJSON形式のみで返してください（説明・\`\`\`不要）:
-{"x1":左端%, "y1":上端%, "x2":右端%, "y2":下端%}`;
+  const cropPrompt = `JSONのみ返してください。説明・改行・\`\`\`不要。
+画像内の名刺の四隅を%座標で: {"x1":左端,"y1":上端,"x2":右端,"y2":下端}`;
 
   // gemini-2.5-flash → 失敗時 gemini-2.0-flash にフォールバック
   const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
@@ -2902,7 +2899,7 @@ async function cropOneSide(dataUrl, geminiKey) {
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
         { method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ contents:[{parts:[{inline_data:{mime_type:mt,data:b64}},{text:cropPrompt}]}],
-            generationConfig:{temperature:0.1, maxOutputTokens:128} }) }
+            generationConfig:{temperature:0.1, maxOutputTokens:512} }) }
       );
       const d = await res.json();
       if (d.error) { cropOneSide._lastErr = `${model}: ${d.error.message}`; continue; }
