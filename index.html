@@ -3005,8 +3005,12 @@ async function bulkReCrop() {
     if (changed) {
       cropped++;
       if (gasUrl) {
-        try { await gasPostWithRetry(gasUrl, { action:'update', card }); }
-        catch(e) { console.warn('GAS更新失敗:', card.id, e.message); }
+        try {
+          const { data: upd } = await gasPostWithRetry(gasUrl, { action:'update', card });
+          // GAS が新しい Drive URL を返したら card に反映
+          if (upd?.imageUrl)  { card.imageUrl  = upd.imageUrl;  card.imageData  = ''; }
+          if (upd?.imageUrl2) { card.imageUrl2 = upd.imageUrl2; card.imageData2 = ''; }
+        } catch(e) { console.warn('GAS更新失敗:', card.id, e.message); }
       }
     }
 
@@ -3341,8 +3345,8 @@ function openDetail(id){
   dau.style.opacity = c.url?'1':'0.35'; dau.style.pointerEvents = c.url?'':'none';
 
   // ── 名刺画像 ──
-  const frontSrc = fixDriveUrl(c.imageUrl)||c.imageData||'';
-  const backSrc = fixDriveUrl(c.imageUrl2)||c.imageData2||'';
+  const frontSrc = c.imageData||fixDriveUrl(c.imageUrl)||'';
+  const backSrc  = c.imageData2||fixDriveUrl(c.imageUrl2)||'';
   window._detailImgSides = [frontSrc,backSrc].filter(Boolean);
   const imgWrap = document.getElementById('d-img-wrap-eight');
   const ph = document.getElementById('d-img-placeholder');
