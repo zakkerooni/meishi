@@ -2834,6 +2834,8 @@ async function bulkStartOCR() {
 
     if(bar) bar.style.width = `${((i+1)/bulkFiles.length)*100}%`;
     bulkRenderGrid();
+    // レート制限対策: カード間に2秒待機（無料枠 15回/分 = 4秒間隔が安全）
+    if (i < bulkFiles.length - 1) await new Promise(r => setTimeout(r, 2000));
   }
 
   renderCards(); buildOwChips(); buildOrgChips();
@@ -2863,68 +2865,70 @@ async function fetchImageViaGas(gasUrl, fileId) {
 }
 
 // 1枚クロップして更新（表面または裏面）
-// Gemini に送る前に長辺 1024px 以下にリサイズ
-function resizeForGemini(dataUrl, maxSide = 1024) {
+// Canvas 色差検出で名刺領域を自動検出（AIなし・ピクセル精度）
+function detectCardBoundsCV(dataUrl) {
   return new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
-      const W = img.naturalWidth, H = img.naturalHeight;
-      if (W <= maxSide && H <= maxSide) { resolve(dataUrl); return; }
-      const scale = maxSide / Math.max(W, H);
+      // 処理用に 512px にリサイズ
+      const MAX = 512;
+      const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+      const W = Math.round(img.naturalWidth * scale);
+      const H = Math.round(img.naturalHeight * scale);
       const cv = document.createElement('canvas');
-      cv.width = Math.round(W * scale);
-      cv.height = Math.round(H * scale);
-      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
-      resolve(cv.toDataURL('image/jpeg', 0.85));
+      cv.width = W; cv.height = H;
+      const ctx = cv.getContext('2d');
+      ctx.drawImage(img, 0, 0, W, H);
+      const px = ctx.getImageData(0, 0, W, H).data;
+
+      const get = (x, y) => { const i=(y*W+x)*4; return [px[i],px[i+1],px[i+2]]; };
+      const colorDiff = ([r1,g1,b1],[r2,g2,b2]) => Math.abs(r1-r2)+Math.abs(g1-g2)+Math.abs(b1-b2);
+
+      // 4隅のパッチから背景色（中央値）を取得
+      const cp = Math.max(8, Math.floor(Math.min(W,H) * 0.1));
+      const samples = [];
+      for (let y=0; y<cp; y++) for (let x=0; x<cp; x++) {
+        samples.push(get(x,y)); samples.push(get(W-1-x,y));
+        samples.push(get(x,H-1-y)); samples.push(get(W-1-x,H-1-y));
+      }
+      const bg = [0,1,2].map(c => {
+        const v = samples.map(s=>s[c]).sort((a,b)=>a-b);
+        return v[Math.floor(v.length/2)];
+      });
+
+      // 各行・列で「背景と異なるピクセルの割合」を計算
+      const THRESH = 50;
+      const rowFrac = Array.from({length:H}, (_,y) => {
+        let n=0; for(let x=0;x<W;x++) if(colorDiff(get(x,y),bg)>THRESH) n++;
+        return n/W;
+      });
+      const colFrac = Array.from({length:W}, (_,x) => {
+        let n=0; for(let y=0;y<H;y++) if(colorDiff(get(x,y),bg)>THRESH) n++;
+        return n/H;
+      });
+
+      // 名刺の境界 = 背景比率が変わる最初の行・列（25%以上が背景と異なる）
+      const RT = 0.25, m = 0.03;
+      let y1=Math.floor(H*m), y2=Math.ceil(H*(1-m))-1;
+      let x1=Math.floor(W*m), x2=Math.ceil(W*(1-m))-1;
+      for(let y=Math.floor(H*m); y<H/2; y++) if(rowFrac[y]>RT){y1=y;break;}
+      for(let y=Math.ceil(H*(1-m))-1; y>H/2; y--) if(rowFrac[y]>RT){y2=y;break;}
+      for(let x=Math.floor(W*m); x<W/2; x++) if(colFrac[x]>RT){x1=x;break;}
+      for(let x=Math.ceil(W*(1-m))-1; x>W/2; x--) if(colFrac[x]>RT){x2=x;break;}
+
+      resolve({ x1:Math.round(x1/W*100), y1:Math.round(y1/H*100),
+                x2:Math.round(x2/W*100), y2:Math.round(y2/H*100) });
     };
-    img.onerror = () => resolve(dataUrl);
+    img.onerror = () => resolve(null);
     img.src = dataUrl;
   });
 }
 
 async function cropOneSide(dataUrl, geminiKey) {
-  // Gemini に送る画像は 1024px 以下にリサイズ（サイズ超過エラー防止）
-  const small = await resizeForGemini(dataUrl, 1024);
-  const b64 = small.split(',')[1];
-  const mt  = small.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-  const cropPrompt = `JSONのみ返してください。説明・改行・\`\`\`不要。
-画像内の名刺の四隅を%座標で: {"x1":左端,"y1":上端,"x2":右端,"y2":下端}`;
-
-  // gemini-2.5-flash → 失敗時 gemini-2.0-flash にフォールバック
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
-  let raw = null, usedModel = '';
-  for (const model of models) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
-        { method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ contents:[{parts:[{inline_data:{mime_type:mt,data:b64}},{text:cropPrompt}]}],
-            generationConfig:{temperature:0.1, maxOutputTokens:512} }) }
-      );
-      const d = await res.json();
-      if (d.error) { cropOneSide._lastErr = `${model}: ${d.error.message}`; continue; }
-      // Gemini 2.5 Flash は thinking モードで parts[0] が内部思考テキスト → thought:false のパートを使う
-      const parts = d.candidates?.[0]?.content?.parts || [];
-      const textPart = parts.find(p => !p.thought) || parts[0];
-      raw = textPart?.text || null;
-      if (raw) { usedModel = model; break; }
-    } catch(e) { cropOneSide._lastErr = `${model}: ${e.message}`; }
-  }
-
-  if (!raw) { cropOneSide._lastResult = `APIエラー: ${cropOneSide._lastErr||'不明'}`; return dataUrl; }
-
-  let box = null;
-  try {
-    // greedy マッチ（ネストされた JSON にも対応）
-    const m = raw.match(/\{[\s\S]*\}/);
-    const r = m ? JSON.parse(m[0]) : {};
-    box = (r.x1 !== undefined) ? r : (r.cropBox || null);
-  } catch(e) { cropOneSide._lastResult = `JSON解析失敗: ${raw}`; }
-
+  const box = await detectCardBoundsCV(dataUrl);
   cropOneSide._lastResult = box
-    ? `${usedModel} → x1=${box.x1} y1=${box.y1} x2=${box.x2} y2=${box.y2}`
-    : `座標なし: ${raw}`;
-
+    ? `CV検出 → x1=${box.x1} y1=${box.y1} x2=${box.x2} y2=${box.y2}`
+    : 'CV検出失敗';
   if (!box) return dataUrl;
   return await applyAICropForce(dataUrl, box);
 }
@@ -3928,30 +3932,38 @@ async function ocrGemini(apiKey, model, b64, mimeType) {
         { text: JP_MEISHI_PROMPT }
       ]
     }],
-    // Gemini 2.5系の思考モード（Thinking）をOFFにしてJSON出力を安定させる
     generationConfig: {
       temperature: 0.1,
       maxOutputTokens: 2048,
       thinkingConfig: { thinkingBudget: 0 }
     }
   };
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(()=>({}));
-    // 429 = quota exceeded → 上位でフォールバック
-    throw new Error(`Gemini ${res.status}: ${err.error?.message||res.statusText}`);
+
+  // 429 時は指数バックオフでリトライ（最大3回）
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 2000 * attempt)); // 2s, 4s
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (res.status === 429) {
+      lastErr = new Error(`Gemini 429: レート制限 (attempt ${attempt+1})`);
+      console.warn(lastErr.message);
+      continue;
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      throw new Error(`Gemini ${res.status}: ${err.error?.message||res.statusText}`);
+    }
+    const data = await res.json();
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    const text = (parts.find(p => !p.thought)?.text) || parts[0]?.text || '';
+    if (!text) throw new Error('Gemini: レスポンスが空です');
+    return parseOcrJson(text);
   }
-  const data = await res.json();
-  // Thinking モデルは parts[0] が思考テキスト（thought:true）の場合があるため
-  // thought フラグのない最初のパートを探す
-  const parts = data.candidates?.[0]?.content?.parts || [];
-  const text = (parts.find(p => !p.thought)?.text) || parts[0]?.text || '';
-  if (!text) throw new Error('Gemini: レスポンスが空です');
-  return parseOcrJson(text);
+  throw lastErr || new Error('Gemini: リトライ上限');
 }
 
 // ── Claude API 呼び出し ──
