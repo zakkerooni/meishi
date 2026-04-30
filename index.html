@@ -2906,7 +2906,10 @@ async function cropOneSide(dataUrl, geminiKey) {
       );
       const d = await res.json();
       if (d.error) { cropOneSide._lastErr = `${model}: ${d.error.message}`; continue; }
-      raw = d.candidates?.[0]?.content?.parts?.[0]?.text || null;
+      // Gemini 2.5 Flash は thinking モードで parts[0] が内部思考テキスト → thought:false のパートを使う
+      const parts = d.candidates?.[0]?.content?.parts || [];
+      const textPart = parts.find(p => !p.thought) || parts[0];
+      raw = textPart?.text || null;
       if (raw) { usedModel = model; break; }
     } catch(e) { cropOneSide._lastErr = `${model}: ${e.message}`; }
   }
