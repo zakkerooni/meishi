@@ -2863,21 +2863,59 @@ async function fetchImageViaGas(gasUrl, fileId) {
 }
 
 // 1枚クロップして更新（表面または裏面）
-async function cropOneSide(dataUrl, geminiKey, prompt) {
+async function cropOneSide(dataUrl, geminiKey) {
   const b64 = dataUrl.split(',')[1];
   const mt  = dataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+  const cropPrompt = `この画像に名刺が写っています。名刺の四隅の座標を%で答えてください。
+背景（机・手・壁・テーブルクロスなど）が少しでも写っている場合は、名刺の縁ぴったりに座標を合わせてください。
+名刺が画像の端まで完全にはみ出していてトリミング不要な場合のみ 0,0,100,100 にしてください。
+必ず以下のJSON形式のみで返してください（説明・\`\`\`不要）:
+{"x1":左端%, "y1":上端%, "x2":右端%, "y2":下端%}`;
+
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
     { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ contents:[{parts:[{inline_data:{mime_type:mt,data:b64}},{text:prompt}]}],
-        generationConfig:{temperature:0, maxOutputTokens:64} }) }
+      body: JSON.stringify({ contents:[{parts:[{inline_data:{mime_type:mt,data:b64}},{text:cropPrompt}]}],
+        generationConfig:{temperature:0, maxOutputTokens:128} }) }
   );
   const d = await res.json();
   const raw = d.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-  const m = raw.match(/\{[\s\S]*\}/);
-  const r = m ? JSON.parse(m[0]) : {};
-  if (!r.cropBox) return dataUrl;
-  return await applyAICrop(dataUrl, r.cropBox);
+  console.log('[cropOneSide] Gemini raw:', raw);
+  let box = null;
+  try {
+    const m = raw.match(/\{[\s\S]*?\}/);
+    const r = m ? JSON.parse(m[0]) : {};
+    // {"x1":...} 直接形式 OR {"cropBox":{...}} 形式どちらにも対応
+    box = (r.x1 !== undefined) ? r : (r.cropBox || null);
+  } catch(e) { console.warn('[cropOneSide] parse error:', e); }
+  console.log('[cropOneSide] box:', box);
+  if (!box) return dataUrl;
+  return await applyAICropForce(dataUrl, box);
+}
+
+// 閾値を極小（1%）にした強制クロップ版
+function applyAICropForce(dataUrl, cropBox) {
+  return new Promise(resolve => {
+    const { x1=0, y1=0, x2=100, y2=100 } = cropBox;
+    // 全辺が1%未満のずれなら本当にトリミング不要
+    if (x1 < 1 && y1 < 1 && x2 > 99 && y2 > 99) { resolve(dataUrl); return; }
+    const img = new Image();
+    img.onload = () => {
+      const W = img.naturalWidth, H = img.naturalHeight;
+      const pad = 0.008; // 0.8% 余白
+      const sx = Math.max(0, (x1/100 - pad) * W);
+      const sy = Math.max(0, (y1/100 - pad) * H);
+      const ex = Math.min(W, (x2/100 + pad) * W);
+      const ey = Math.min(H, (y2/100 + pad) * H);
+      if (ex - sx < 20 || ey - sy < 20) { resolve(dataUrl); return; }
+      const cv = document.createElement('canvas');
+      cv.width = ex - sx; cv.height = ey - sy;
+      cv.getContext('2d').drawImage(img, sx, sy, cv.width, cv.height, 0, 0, cv.width, cv.height);
+      resolve(cv.toDataURL('image/jpeg', 0.92));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
 }
 
 async function bulkReCrop() {
@@ -2910,7 +2948,6 @@ async function bulkReCrop() {
   bar.style.width = '0%';
 
   let done = 0, cropped = 0, skipped = 0;
-  const prompt = `この名刺画像の名刺領域の座標を返してください。\n{"cropBox":{"x1":0,"y1":0,"x2":100,"y2":100}}\n- 名刺が画面いっぱいなら x1=0,y1=0,x2=100,y2=100\n- JSONのみ返してください`;
 
   for (const card of targets) {
     const label = card.name || card.company || card.id;
@@ -2925,24 +2962,41 @@ async function bulkReCrop() {
       // base64 がなければ GAS 経由で Drive から取得
       if (!dataUrl && card.imageUrl && gasUrl) {
         const fid = extractDriveFileId(card.imageUrl);
-        if (fid) dataUrl = await fetchImageViaGas(gasUrl, fid);
+        if (fid) {
+          status.textContent = `[${done+1}/${targets.length}] ${label} — Drive から画像取得中…`;
+          dataUrl = await fetchImageViaGas(gasUrl, fid);
+          if (!dataUrl) status.textContent = `[${done+1}/${targets.length}] ${label} — ⚠ 画像取得失敗（GAS未更新の可能性）`;
+        } else {
+          status.textContent = `[${done+1}/${targets.length}] ${label} — ⚠ fileID取得失敗: ${card.imageUrl}`;
+        }
       }
       if (dataUrl) {
-        const newUrl = await cropOneSide(dataUrl, geminiKey, prompt);
-        if (newUrl !== dataUrl) { card.imageData = newUrl; changed = true; }
+        status.textContent = `[${done+1}/${targets.length}] ${label} — Gemini でトリミング解析中…`;
+        const newUrl = await cropOneSide(dataUrl, geminiKey);
+        if (newUrl !== dataUrl) {
+          card.imageData = newUrl; changed = true;
+          status.textContent = `[${done+1}/${targets.length}] ${label} — ✓ トリミング完了`;
+        } else {
+          status.textContent = `[${done+1}/${targets.length}] ${label} — スキップ（すでに最適）`;
+        }
         await new Promise(r => setTimeout(r, 600));
       }
-    } catch(e) { console.warn('再トリミング(表)失敗:', card.id, e.message); }
+    } catch(e) {
+      status.textContent = `[${done+1}/${targets.length}] ${label} — エラー: ${e.message}`;
+      console.warn('再トリミング(表)失敗:', card.id, e.message);
+    }
 
     // ── 裏面 ──
     try {
       let dataUrl2 = card.imageData2 && card.imageData2.startsWith('data:') ? card.imageData2 : null;
       if (!dataUrl2 && card.imageUrl2 && gasUrl) {
         const fid = extractDriveFileId(card.imageUrl2);
-        if (fid) dataUrl2 = await fetchImageViaGas(gasUrl, fid);
+        if (fid) {
+          dataUrl2 = await fetchImageViaGas(gasUrl, fid);
+        }
       }
       if (dataUrl2) {
-        const newUrl2 = await cropOneSide(dataUrl2, geminiKey, prompt);
+        const newUrl2 = await cropOneSide(dataUrl2, geminiKey);
         if (newUrl2 !== dataUrl2) { card.imageData2 = newUrl2; changed = true; }
         await new Promise(r => setTimeout(r, 600));
       }
